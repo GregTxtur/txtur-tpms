@@ -1,0 +1,27 @@
+/* TPMS — sized for an office PC and a shop-floor tablet alike. */
+:root{--ply:#e8d4a8;--ply-dark:#b48a4a;--ink:#221a10;--paper:#fbf7ef;--ok:#2f7a3d;--bad:#b3261e;--mute:#6b5d48}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.5 Georgia,"Times New Roman",serif}
+.bar{display:flex;align-items:baseline;gap:14px;padding:14px 28px;background:repeating-linear-gradient(90deg,var(--ply) 0 22px,#dcc48f 22px 24px);border-bottom:6px solid var(--ply-dark)}
+.mark{font-weight:700;font-size:26px;letter-spacing:.04em;color:var(--ink);text-decoration:none}
+.sub{color:var(--mute)}
+.who{margin-left:auto;color:var(--ink)}
+main{padding:40px 28px}
+.sheet{max-width:720px;margin:0 auto}
+.narrow{max-width:420px}
+h1{font-size:34px;line-height:1.15;margin:0 0 18px}
+.lede{font-size:19px;color:var(--mute);margin:0 0 32px}
+.checks{margin:0;border-top:2px solid var(--ply-dark)}
+.checks div{display:grid;grid-template-columns:120px 1fr;gap:16px;padding:12px 0;border-bottom:1px solid var(--ply)}
+.checks dt{color:var(--mute)}
+.checks dd{margin:0}
+.checks .ok dd::before{content:"● ";color:var(--ok)}
+.checks .bad dd::before{content:"● ";color:var(--bad)}
+.foot{color:var(--mute);margin-top:28px}
+code{font-family:Consolas,monospace;font-size:15px}
+label{display:block;margin:0 0 18px}
+input{display:block;width:100%;margin-top:6px;padding:12px;font:inherit;border:2px solid var(--ply-dark);border-radius:4px;background:#fff}
+input:focus{outline:3px solid var(--ply);outline-offset:1px}
+button{font:inherit;font-weight:700;padding:12px 22px;border:0;border-radius:4px;background:var(--ink);color:var(--paper);cursor:pointer}
+button:focus-visible{outline:3px solid var(--ply-dark);outline-offset:2px}
+.error{color:var(--bad)}

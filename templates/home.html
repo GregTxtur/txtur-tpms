@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="sheet">
+  <h1>The plywood cell has a system now. It just doesn't do anything yet.</h1>
+  <p class="lede">This is the skeleton release. It proves the server, the database and the sign-on gate are wired up so the real screens — the One List, the material board, the program list — have somewhere to land.</p>
+  <dl class="checks">
+    <div><dt>App</dt><dd>tpms {{ version }} on {{ host }}</dd></div>
+    <div class="{{ 'ok' if db.ok else 'bad' }}"><dt>Database</dt><dd>{{ db.detail }}</dd></div>
+    <div><dt>Checked</dt><dd>{{ now }}</dd></div>
+  </dl>
+  <p class="foot">Health endpoint for monitors: <code>/health</code></p>
+</section>
+{% endblock %}

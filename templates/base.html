@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}TPMS{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='tpms.css') }}">
+</head>
+<body>
+<header class="bar">
+  <a class="mark" href="/">TPMS</a>
+  <span class="sub">Txtur plywood management</span>
+  {% if current_user() %}<a class="who" href="/logout">{{ current_user() }} · sign out</a>{% endif %}
+</header>
+<main>{% block body %}{% endblock %}</main>
+</body>
+</html>

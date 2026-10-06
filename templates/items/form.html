@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if item else 'Add' }} plywood · TPMS{% endblock %}
+{% block body %}
+<section class="sheet">
+  <h1>{{ 'Edit plywood' if item else 'Add plywood' }}</h1>
+  {% for e in errors %}<p class="flash bad">{{ e }}</p>{% endfor %}
+  {% if not types %}
+  <p class="note">There are no plywood types yet. <a href="{{ url_for('items.setup_list', kind='types') }}">Add a type</a> first.</p>
+  {% endif %}
+  <form method="post" class="form">
+    <div class="row3">
+      <label>Type
+        <select name="type_id" required>
+          <option value="">Choose…</option>
+          {% for t in types %}<option value="{{ t.id }}" {{ 'selected' if form.type_id == t.id }}>{{ t.name }}</option>{% endfor %}
+        </select>
+        <small><a href="{{ url_for('items.setup_list', kind='types') }}">Add a new type</a></small>
+      </label>
+      <label>Thickness
+        <input name="thickness" value="{{ form.thickness or '' }}" list="thicknesses" placeholder="12 mm" required>
+        <datalist id="thicknesses">{% for t in thicknesses %}<option value="{{ t }}">{% endfor %}</datalist>
+      </label>
+      <label>Sheet size
+        <input name="sheet_size" value="{{ form.sheet_size or '' }}" list="sizes" placeholder="4x8" required>
+        <datalist id="sizes">{% for s in sizes %}<option value="{{ s }}">{% endfor %}</datalist>
+      </label>
+    </div>
+    <div class="row3">
+      <label>Grade <span class="opt">optional</span>
+        <input name="grade" value="{{ form.grade or '' }}" placeholder="only if more than one">
+      </label>
+      <label>Supplier
+        <select name="supplier_id">
+          <option value="">Not set</option>
+          {% for s in suppliers %}<option value="{{ s.id }}" {{ 'selected' if form.supplier_id == s.id }}>{{ s.name }}</option>{% endfor %}
+        </select>
+        <small><a href="{{ url_for('items.setup_list', kind='suppliers') }}">Add a supplier</a></small>
+      </label>
+      <label>Sheets per pack
+        <input name="sheets_per_pack" inputmode="numeric" value="{{ form.sheets_per_pack if form.sheets_per_pack is not none else '' }}">
+        <small>How many sheets come in one pack.</small>
+      </label>
+    </div>
+    <div class="row3">
+      <label>Cost per sheet
+        <input name="cost_per_sheet" inputmode="decimal" value="{{ form.cost_per_sheet if form.cost_per_sheet is not none else '' }}" placeholder="0.00">
+      </label>
+      <label>Lead time, days
+        <input name="lead_time_days" inputmode="numeric" value="{{ form.lead_time_days if form.lead_time_days is not none else '' }}">
+      </label>
+      <label>Reorder at, sheets
+        <input name="reorder_point" inputmode="numeric" value="{{ form.reorder_point if form.reorder_point is not none else '' }}">
+        <small>The board flags this plywood at or below this many sheets.</small>
+      </label>
+    </div>
+    <label>Notes
+      <input name="notes" value="{{ form.notes or '' }}">
+    </label>
+    <div class="row3">
+      <label>Code <span class="opt">optional</span>
+        <input name="code" value="{{ form.code or '' }}" placeholder="made for you if left blank">
+      </label>
+      <label class="check"><input type="checkbox" name="active" value="1" {{ 'checked' if form.active }}> In use
+        <small>Untick to retire a plywood you no longer stock. Its history stays.</small>
+      </label>
+    </div>
+    <p><button type="submit">Save</button> <a class="btn quiet" href="{{ url_for('items.item_list') }}">Cancel</a></p>
+  </form>
+  {% if item %}
+  <form method="post" action="{{ url_for('items.item_delete', item_id=item.id) }}" class="danger">
+    <button type="submit" class="quiet">Delete this item</button>
+    <small>Only possible while it has no stock history and no programs linked. Otherwise untick "In use" to retire it.</small>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

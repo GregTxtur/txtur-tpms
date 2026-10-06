@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ spec.title }} · TPMS{% endblock %}
+{% block body %}
+<section class="sheet">
+  <p class="crumb"><a href="{{ url_for('items.item_list') }}">Plywood setup</a> ›</p>
+  <h1>{{ spec.title }}</h1>
+  {% if kind == 'types' %}
+  <p class="lede">The kinds of plywood you stock. Each stocked plywood picks its type from this list, so a type is spelled one way everywhere.</p>
+  {% else %}
+  <p class="lede">Who you buy plywood from. Each stocked plywood can name its supplier.</p>
+  {% endif %}
+  <form method="post" class="inline">
+    <input type="hidden" name="action" value="add">
+    <input name="name" placeholder="New {{ spec.one }} name" required>
+    <button type="submit">Add</button>
+  </form>
+  {% if rows %}
+  <table class="grid">
+    <thead><tr><th>Name</th><th class="r">Used on</th><th></th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="{{ '' if r.active else 'off' }}">
+        <td>
+          <form method="post" class="inline tight">
+            <input type="hidden" name="action" value="rename"><input type="hidden" name="id" value="{{ r.id }}">
+            <input name="name" value="{{ r.name }}" required>
+            <button type="submit" class="quiet">Rename</button>
+          </form>
+        </td>
+        <td class="r">{{ r.used }} item{{ '' if r.used == 1 else 's' }}</td>
+        <td>
+          <form method="post"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ r.id }}">
+            <button type="submit" class="quiet">{{ 'Retire' if r.active else 'Bring back' }}</button></form>
+        </td>
+        <td>
+          {% if not r.used %}
+          <form method="post"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ r.id }}">
+            <button type="submit" class="quiet">Delete</button></form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="note">Nothing here yet. Add the first one above.</p>
+  {% endif %}
+</section>
+{% endblock %}

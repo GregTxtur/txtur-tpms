@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Ledger · TPMS{% endblock %}
+{% block body %}
+<section class="wide">
+  <div class="head">
+    <h1>Inventory ledger</h1>
+    <div class="actions"><a class="btn quiet" href="{{ url_for('inventory.ledger_xlsx', **args) }}">Download as Excel</a></div>
+  </div>
+  <form method="get" class="filters">
+    <label>Plywood
+      <select name="item"><option value="">All</option>
+        {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if args.get('item') == i.id|string }}>{{ item_label(i) }}</option>{% endfor %}
+      </select></label>
+    <label>Kind
+      <select name="type"><option value="">All</option>
+        {% for key, label in labels.items() %}<option value="{{ key }}" {{ 'selected' if args.get('type') == key }}>{{ label }}</option>{% endfor %}
+      </select></label>
+    <label>Shop order <input name="so" value="{{ args.get('so', '') }}"></label>
+    <label>Job <input name="job" value="{{ args.get('job', '') }}"></label>
+    <label>From <input type="date" name="from" value="{{ args.get('from', '') }}"></label>
+    <label>To <input type="date" name="to" value="{{ args.get('to', '') }}"></label>
+    <button type="submit">Show</button>
+    <a class="btn quiet" href="{{ url_for('inventory.ledger') }}">Clear</a>
+  </form>
+  {% if rows %}
+  <p class="count">{{ rows|length|num }} entr{{ 'y' if rows|length == 1 else 'ies' }}{% if more %} shown (the newest {{ limit }}; download the Excel file for all of them){% endif %} · net {{ '%+d'|format(net) }} sheets</p>
+  <div class="scroll"><table class="grid">
+    <thead><tr><th>When</th><th>Plywood</th><th>Kind</th><th class="r">Sheets</th><th>Reason</th><th>Reference</th>
+      <th>Job</th><th>Shop order</th><th>Team member</th><th>Note</th><th>Entered by</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr>
+        <td class="nowrap">{{ r.created_at|localtime }}</td><td class="nowrap">{{ item_label(r) }}</td>
+        <td>{{ labels[r.txn_type] }}</td>
+        <td class="r {{ 'neg' if r.qty_sheets < 0 else '' }}">{{ '%+d'|format(r.qty_sheets) }}</td>
+        <td>{{ r.reason }}</td><td>{{ r.reference }}</td><td>{{ r.job_number }}</td><td>{{ r.shop_order }}</td>
+        <td>{{ r.team_member }}</td><td>{{ r.note }}</td><td>{{ r.entered_by }}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="note">No entries match.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Count / adjust · TPMS{% endblock %}
+{% block body %}
+<section class="sheet">
+  <h1>Count or adjust</h1>
+  <p class="lede">Every change here is kept in the ledger with who made it, when, and why.</p>
+  {% if not items %}
+  <p class="note">No plywood is set up yet. Start in <a href="{{ url_for('items.item_list') }}">Plywood setup</a>.</p>
+  {% else %}
+  <form method="post" class="form">
+    <label>Plywood
+      <select name="item_id" required autofocus>
+        <option value="">Choose…</option>
+        {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if form.item_id == i.id }}>{{ item_label(i) }} — system shows {{ i.on_hand|num }}</option>{% endfor %}
+      </select>
+    </label>
+    <fieldset class="choice"><legend>What are you entering?</legend>
+      <label><input type="radio" name="mode" value="count" {{ 'checked' if form.mode != 'change' }}> I counted the stack — this is how many sheets are there</label>
+      <label><input type="radio" name="mode" value="change" {{ 'checked' if form.mode == 'change' }}> Add or remove sheets — use a minus sign to remove, like -3</label>
+    </fieldset>
+    <div class="row3">
+      <label>Sheets
+        <input name="qty" inputmode="numeric" value="{{ form.qty or '' }}" required>
+      </label>
+      <label>Reason
+        <select name="reason">{% for r in reasons %}<option {{ 'selected' if form.reason == r }}>{{ r }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <label>Note <span class="opt">needed when the reason is Other</span>
+      <input name="note" value="{{ form.note or '' }}">
+    </label>
+    <p><button type="submit">Save</button></p>
+  </form>
+  {% endif %}
+  {% if recent %}
+  <h2>Last adjustments</h2>
+  <table class="grid">
+    <thead><tr><th>When</th><th>Plywood</th><th class="r">Sheets</th><th>Reason</th><th>Note</th><th>By</th></tr></thead>
+    <tbody>{% for r in recent %}
+      <tr><td>{{ r.created_at|localtime }}</td><td>{{ item_label(r) }}</td><td class="r">{{ '%+d'|format(r.qty_sheets) }}</td><td>{{ r.reason }}</td><td>{{ r.note }}</td><td>{{ r.entered_by }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

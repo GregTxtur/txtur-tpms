@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ form.number or 'New program' }} · TPMS{% endblock %}
+{% macro val(name) %}{{ form[name] if form.get(name) is not none else '' }}{% endmacro %}
+{% block body %}
+<section class="sheet">
+  <p class="crumb"><a href="{{ request.args.get('back') if (request.args.get('back') or '').startswith('/programs') else url_for('programs.program_list') }}">Program list</a> ›</p>
+  <h1>{{ ('Program ' ~ program.number) if program else 'Add program' }}</h1>
+  {% for e in errors %}<p class="flash bad">{{ e }}</p>{% endfor %}
+  <form method="post" class="form">
+    <div class="row3">
+      <label>Program number <input name="number" value="{{ val('number') }}" placeholder="P6136" required></label>
+      <label class="span2">Name <input name="name" value="{{ val('name') }}" placeholder="80411-2  1 OF 2"></label>
+    </div>
+    <label>Description <span class="opt">optional</span> <input name="description" value="{{ val('description') }}" placeholder="( SEAT )"></label>
+    <div class="row3">
+      <label>Sheet size <input name="sheet_size" value="{{ val('sheet_size') }}" placeholder="4x8"></label>
+      <label>Thickness <input name="thickness" value="{{ val('thickness') }}" placeholder="12 mm"></label>
+      <label>Material as listed <input name="material_text" value="{{ val('material_text') }}"></label>
+    </div>
+    <label>Stock item this program cuts from
+      <select name="item_id"><option value="">Not linked yet</option>
+        {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if form.get('item_id') == i.id }}>{{ item_label(i) }}{% if not i.active %} (retired){% endif %}</option>{% endfor %}
+      </select>
+      <small>Linking a program to a stock item is what lets a cut order deduct the right plywood.</small>
+    </label>
+    <div class="row4">
+      <label>Units per sheet <input name="units_per_sheet" inputmode="decimal" value="{{ '%g'|format(form.units_per_sheet|float) if form.get('units_per_sheet') is not none else '' }}"></label>
+      <label>Sheets per unit <input name="sheets_per_unit" inputmode="decimal" value="{{ '%.4g'|format(form.sheets_per_unit|float) if form.get('sheets_per_unit') is not none else '' }}"></label>
+      <label>Parts on sheet <input name="parts_on_sheet" inputmode="numeric" value="{{ val('parts_on_sheet') }}"></label>
+      <label>Parts in one unit <input name="parts_in_unit" inputmode="numeric" value="{{ val('parts_in_unit') }}"></label>
+    </div>
+    {% if form.get('units_text') and form.get('units_per_sheet') is none %}<p class="mute">The old list says "{{ form.units_text }}" for units per sheet.</p>{% endif %}
+    <fieldset class="times"><legend>Router time per sheet at 100% — minutes:seconds</legend>
+      <div class="row4">
+        {% for m in machines %}
+        <label>{{ m.name }}{% if not m.active %} <span class="opt">not running</span>{% endif %}
+          <input name="time_{{ m.id }}" value="{{ time_text.get(m.id, '') }}" placeholder="5:30"></label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <div class="row3">
+      <label>Usual machine <input name="machine_code" value="{{ val('machine_code') }}" placeholder="H1"></label>
+      <label>Status
+        <select name="status">{% for s in statuses %}<option value="{{ s }}" {{ 'selected' if form.get('status') == s }}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Date <input type="date" name="program_date" value="{{ val('program_date') }}"></label>
+    </div>
+    <label>Notes <input name="notes" value="{{ val('notes') }}"></label>
+    <p><button type="submit">Save</button></p>
+  </form>
+</section>
+{% endblock %}

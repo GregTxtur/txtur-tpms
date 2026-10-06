@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Load workbook · TPMS{% endblock %}
+{% block body %}
+<section class="sheet">
+  <h1>Load the plywood workbook</h1>
+  <p class="lede">Brings the old "Active Orders on Plywood" workbook into TPMS. It is safe to run more than once: anything already here is left alone.</p>
+  {% if result %}
+  <div class="result">
+    <h2>Loaded {{ result.file }}</h2>
+    <ul>
+    {% if result.get('items') %}
+      <li><b>{{ result['items'].added }}</b> plywood item{{ '' if result['items'].added == 1 else 's' }} added from {{ result['items'].found }} plywood columns, {{ result['items'].balances }} with an opening count. <a href="{{ url_for('items.item_list') }}">Check them in Plywood setup</a>.</li>
+    {% endif %}
+    {% if result.get('programs') %}
+      <li><b>{{ result.programs.added|num }}</b> programs added{% if result.programs.updated %}, {{ result.programs.updated|num }} refreshed{% endif %}{% if result.programs.skipped %}, {{ result.programs.skipped|num }} already here and left alone{% endif %}; {{ result.programs.times|num }} router times read. <a href="{{ url_for('programs.program_list') }}">Open the program list</a>.</li>
+      {% if result.report.sheet is none %}<li class="bad">No sheet named "CNC PROGRAM LIST" was found in that file.</li>{% endif %}
+      {% if result.report.repeats %}<li>{{ result.report.repeats }} exact repeat rows were skipped.</li>{% endif %}
+      {% if result.report.unreadable_times %}<li>{{ result.report.unreadable_times }} router times were words rather than times ("see notes" and the like) and were left blank.</li>{% endif %}
+      {% if result.report.odd_numbers %}<li>{{ result.report.odd_numbers|length }} program numbers do not look like P0000 and are flagged "check": {{ result.report.odd_numbers|join(', ') }}.</li>{% endif %}
+    {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+  <form method="post" enctype="multipart/form-data" class="form">
+    <label>Workbook (.xlsx)
+      <input type="file" name="workbook" accept=".xlsx,.xlsm" required>
+    </label>
+    <fieldset class="choice"><legend>What to load</legend>
+      <label><input type="checkbox" name="programs" value="1" checked> The CNC program list <span class="opt">{{ counts.programs|num }} programs in TPMS now</span></label>
+      <label><input type="checkbox" name="items" value="1" {{ 'checked' if counts['items'] == 0 }}> Starting plywood items and their on-hand counts, from the queue and filed sheets <span class="opt">{{ counts['items'] }} items in TPMS now</span></label>
+      <label><input type="checkbox" name="overwrite" value="1"> Also overwrite programs already in TPMS with what the workbook says <span class="opt">this undoes edits made here</span></label>
+    </fieldset>
+    <p><button type="submit">Load</button></p>
+  </form>
+  <p class="foot">Router times in the workbook are read as minutes:seconds per sheet. Jobs on the queue and filed sheets are not loaded yet; they come in with cut orders.</p>
+</section>
+{% endblock %}

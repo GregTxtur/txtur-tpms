@@ -1,13 +1,28 @@
 {% extends "base.html" %}
 {% block body %}
-<section class="sheet">
-  <h1>The plywood cell has a system now. It just doesn't do anything yet.</h1>
-  <p class="lede">This is the skeleton release. It proves the server, the database and the sign-on gate are wired up so the real screens — the One List, the material board, the program list — have somewhere to land.</p>
-  <dl class="checks">
-    <div><dt>App</dt><dd>tpms {{ version }} on {{ host }}</dd></div>
-    <div class="{{ 'ok' if db.ok else 'bad' }}"><dt>Database</dt><dd>{{ db.detail }}</dd></div>
-    <div><dt>Checked</dt><dd>{{ now }}</dd></div>
-  </dl>
-  <p class="foot">Health endpoint for monitors: <code>/health</code></p>
+<section class="wide">
+  <h1>Plywood cell</h1>
+  {% if not db.ok %}
+    <p class="flash bad">The database is not available: {{ db.detail }}</p>
+  {% elif stats %}
+  <div class="tiles">
+    <a class="tile" href="{{ url_for('inventory.board') }}"><b>{{ stats.sheets|num }}</b><span>sheets on hand across {{ stats.item_count }} plywood items</span></a>
+    <a class="tile" href="{{ url_for('programs.program_list') }}"><b>{{ stats.programs|num }}</b><span>CNC programs on file</span></a>
+    <a class="tile" href="{{ url_for('programs.program_list', time='missing') }}"><b>{{ stats.no_time|num }}</b><span>programs with no router time yet</span></a>
+    <a class="tile" href="{{ url_for('inventory.ledger') }}"><b>{{ stats.txns_week|num }}</b><span>inventory entries in the last 7 days</span></a>
+  </div>
+  {% if stats.item_count == 0 or stats.programs == 0 %}
+  <p class="note">Nothing is loaded yet. <a href="{{ url_for('programs.import_workbook') }}">Load the plywood workbook</a> to bring in the CNC program list and the starting plywood items, or set the plywood up by hand under <a href="{{ url_for('items.item_list') }}">Plywood setup</a>.</p>
+  {% endif %}
+  {% endif %}
+  <h2>Do something</h2>
+  <ul class="links">
+    <li><a href="{{ url_for('inventory.receive') }}">Receive a delivery</a> — in packs or sheets</li>
+    <li><a href="{{ url_for('inventory.adjust') }}">Enter a count or an adjustment</a></li>
+    <li><a href="{{ url_for('inventory.ledger') }}">See every inventory movement</a></li>
+    <li><a href="{{ url_for('items.item_list') }}">Set up plywood</a> — items, types and suppliers</li>
+    <li><a href="{{ url_for('programs.import_workbook') }}">Load the plywood workbook</a></li>
+  </ul>
+  <p class="foot">tpms {{ version }} on {{ host }} · database {{ 'ok' if db.ok else 'down' }} · {{ now }}</p>
 </section>
 {% endblock %}

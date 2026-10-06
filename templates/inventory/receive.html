@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Receive · TPMS{% endblock %}
+{% block body %}
+<section class="sheet">
+  <h1>Receive plywood</h1>
+  {% if not items %}
+  <p class="note">No plywood is set up yet. Start in <a href="{{ url_for('items.item_list') }}">Plywood setup</a>.</p>
+  {% else %}
+  <form method="post" class="form">
+    <label>Plywood
+      <select name="item_id" required autofocus>
+        <option value="">Choose…</option>
+        {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if form.item_id == i.id }}>{{ item_label(i) }} — {{ i.on_hand|num }} on hand{% if i.sheets_per_pack %}, {{ i.sheets_per_pack }} per pack{% endif %}</option>{% endfor %}
+      </select>
+    </label>
+    <div class="row3">
+      <label>How many
+        <input name="qty" inputmode="numeric" value="{{ form.qty or '' }}" required>
+      </label>
+      <fieldset class="choice"><legend>Counted in</legend>
+        <label><input type="radio" name="unit" value="packs" {{ 'checked' if form.unit == 'packs' }}> Packs</label>
+        <label><input type="radio" name="unit" value="sheets" {{ 'checked' if form.unit != 'packs' }}> Sheets</label>
+      </fieldset>
+      <label>PO or packing slip <span class="opt">optional</span>
+        <input name="reference" value="{{ form.reference or '' }}">
+      </label>
+    </div>
+    <label>Note <span class="opt">optional</span>
+      <input name="note" value="{{ form.note or '' }}">
+    </label>
+    <p><button type="submit">Receive</button></p>
+  </form>
+  {% endif %}
+  {% if recent %}
+  <h2>Last receipts</h2>
+  <table class="grid">
+    <thead><tr><th>When</th><th>Plywood</th><th class="r">Sheets</th><th>Reference</th><th>By</th></tr></thead>
+    <tbody>{% for r in recent %}
+      <tr><td>{{ r.created_at|localtime }}</td><td>{{ item_label(r) }}</td><td class="r">{{ r.qty_sheets|num }}</td><td>{{ r.reference }}</td><td>{{ r.entered_by }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

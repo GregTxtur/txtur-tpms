@@ -7,12 +7,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='tpms.css') }}?v={{ app_version }}">
 </head>
 <body>
-<header class="bar">
-  <a class="mark" href="/">TPMS</a>
-  <span class="sub">Txtur plywood management</span>
-  {% if current_user() %}<a class="who" href="/logout">{{ current_user() }} · sign out</a>{% endif %}
-</header>
-{% if current_user() or request.endpoint != 'auth.login' %}
+<script src="https://txturtools.com/tools-assets/topbar.js" data-app="Plywood (TPMS)" data-user="{{ current_user().email if current_user() else '' }}"></script>
+{% if request.endpoint != 'auth.login' %}
 <nav class="nav">
   {% set here = request.endpoint or '' %}
   <a href="{{ url_for('inventory.board') }}" class="{{ 'on' if here == 'inventory.board' }}">Material board</a>

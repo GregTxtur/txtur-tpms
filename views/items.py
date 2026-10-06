@@ -3,7 +3,7 @@ import psycopg
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 import db
-from auth import require_login
+from guard import require_login
 from util import item_sort_key, make_code, norm_size, norm_thickness, norm_ws
 
 bp = Blueprint("items", __name__)

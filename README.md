@@ -24,7 +24,9 @@ Words: stock is always counted in **sheets**. A **pack** is the bundle plywood a
 - On-hand is always `SUM(inventory_txn.qty_sheets)`. No balance is ever stored.
 - Database changes go in `migrations/NNN_name.sql`, applied in order, once each, when the app starts.
   Never edit a migration that has already run on the server; add a new one.
-- Everything about who is signed in lives in `auth/`. Replace that package when the shared M365 sign-on exists.
+- Everything about who is signed in lives in `auth/`. Pages never import from it directly; they use
+  `guard.require_login()` and `guard.user_label()`, which work with both the shared-password module and the
+  Microsoft 365 gate module that the live server runs.
 - Business data (the workbook, program list, orders) never goes in this repository. It is loaded through `/import`.
 - The server runs Python 3.10 and PostgreSQL 14. Test against those.
 

@@ -7,7 +7,7 @@ from flask import (Blueprint, flash, redirect, render_template, request,
 from openpyxl import Workbook
 
 import db
-from auth import current_user, require_login
+from guard import require_login, user_label
 from util import PLANT_TZ, item_label, item_sort_key, norm_ws
 from views.items import ITEM_SQL, all_items
 
@@ -24,7 +24,7 @@ def _post_txn(item_id, txn_type, qty, reason="", reference="", note=""):
     db.execute(
         "insert into inventory_txn (item_id, txn_type, qty_sheets, reason, reference, note, entered_by) "
         "values (%s, %s, %s, %s, %s, %s, %s)",
-        (item_id, txn_type, qty, reason, reference, note, current_user() or ""))
+        (item_id, txn_type, qty, reason, reference, note, user_label()))
 
 
 def _on_hand(item_id):

@@ -11,7 +11,7 @@ import db
 from auth import init_auth, login_required
 from util import PLANT_TZ, fmt_secs, item_label
 
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.1.1"
 
 
 def create_app():

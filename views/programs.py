@@ -7,7 +7,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 import db
 import importer
-from auth import current_user, require_login
+from guard import require_login, user_label
 from util import norm_machine, norm_size, norm_thickness, norm_ws, parse_mmss
 from views.items import all_items
 
@@ -191,7 +191,7 @@ def import_workbook():
             result = {"file": upload.filename}
             conn = db.get_db()
             if want_items:
-                result["items"] = importer.load_items(conn, importer.read_items(wb), entered_by=current_user() or "")
+                result["items"] = importer.load_items(conn, importer.read_items(wb), entered_by=user_label())
             if want_programs:
                 programs, report = importer.read_programs(wb)
                 result["report"] = report

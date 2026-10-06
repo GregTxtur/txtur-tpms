@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Program list · TPMS{% endblock %}
+{% macro opts(name, values) %}{% for v in values %}<option value="{{ v }}" {{ 'selected' if args.get(name) == v }}>{{ v }}</option>{% endfor %}{% endmacro %}
+{% block body %}
+<section class="wide">
+  <div class="head">
+    <h1>CNC program list</h1>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('programs.program_form') }}">Add program</a>
+      <a class="btn quiet" href="{{ url_for('programs.import_workbook') }}">Load workbook</a>
+    </div>
+  </div>
+  <form method="get" class="filters">
+    <label>Find <input name="q" value="{{ args.get('q', '') }}" placeholder="number, name or part" autofocus></label>
+    <label>Machine <select name="machine"><option value="">All</option>{{ opts('machine', choices.machine) }}</select></label>
+    <label>Size <select name="size"><option value="">All</option>{{ opts('size', choices.size) }}</select></label>
+    <label>Thickness <select name="thick"><option value="">All</option>{{ opts('thick', choices.thick) }}</select></label>
+    <label>Material <select name="material"><option value="">All</option>{{ opts('material', choices.material) }}</select></label>
+    <label>Status <select name="status"><option value="">All</option>{{ opts('status', statuses) }}</select></label>
+    <label>Router time <select name="time"><option value="">Any</option>
+      <option value="missing" {{ 'selected' if args.get('time') == 'missing' }}>Missing</option>
+      <option value="has" {{ 'selected' if args.get('time') == 'has' }}>Has a time</option></select></label>
+    <label>Stock item <select name="item"><option value="">Any</option>
+      <option value="linked" {{ 'selected' if args.get('item') == 'linked' }}>Linked</option>
+      <option value="unlinked" {{ 'selected' if args.get('item') == 'unlinked' }}>Not linked</option></select></label>
+    <label>Needs a look <select name="check"><option value="">—</option>
+      <option value="dupes" {{ 'selected' if args.get('check') == 'dupes' }}>Number used twice</option>
+      <option value="odd" {{ 'selected' if args.get('check') == 'odd' }}>Odd number</option></select></label>
+    <button type="submit">Show</button>
+    <a class="btn quiet" href="{{ url_for('programs.program_list') }}">Clear</a>
+  </form>
+  <p class="count">{{ total|num }} program{{ '' if total == 1 else 's' }}{% if pages > 1 %} · page {{ page }} of {{ pages }}{% endif %}</p>
+  {% if rows %}
+  <div class="scroll"><table class="grid dense">
+    <thead><tr>
+      <th>Program</th><th>Name</th><th>Machine</th><th>Size</th><th>Thick</th><th>Material</th><th>Stock item</th>
+      <th class="r">Units / sheet</th><th class="r">Sheets / unit</th>
+      {% for m in machines %}<th class="r" title="{{ m.name }}, minutes:seconds per sheet">{{ m.code }}</th>{% endfor %}
+      <th>Status</th><th>Date</th>
+    </tr></thead>
+    <tbody>{% for p in rows %}
+      <tr class="{{ 'off' if p.status == 'retired' }}">
+        <td class="nowrap"><a href="{{ url_for('programs.program_form', program_id=p.id, back=request.full_path) }}"><b>{{ p.number }}</b></a>{% if p.dupe %} <span class="tag warn" title="This number is on more than one program">twice</span>{% endif %}{% if p.number_flag %} <span class="tag warn">check</span>{% endif %}</td>
+        <td>{{ p.name }}{% if p.description %} <span class="mute">{{ p.description }}</span>{% endif %}</td>
+        <td>{{ p.machine_code }}</td><td class="nowrap">{{ p.sheet_size }}</td><td class="nowrap">{{ p.thickness }}</td><td>{{ p.material_text }}</td>
+        <td class="nowrap">{% if p.item_id %}{{ p.item_size }} {{ p.item_thickness }} {{ p.item_type }}{% if p.item_grade %} · {{ p.item_grade }}{% endif %}{% endif %}</td>
+        <td class="r">{% if p.units_per_sheet is not none %}{{ '%g'|format(p.units_per_sheet|float) }}{% else %}<span class="mute">{{ p.units_text }}</span>{% endif %}</td>
+        <td class="r">{% if p.sheets_per_unit is not none %}{{ '%.3g'|format(p.sheets_per_unit|float) }}{% endif %}</td>
+        {% for m in machines %}<td class="r">{{ times.get(p.id, {}).get(m.id)|mmss }}</td>{% endfor %}
+        <td>{{ p.status if p.status != 'unknown' else '' }}</td>
+        <td class="nowrap">{{ p.program_date.strftime('%m/%d/%y') if p.program_date else '' }}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% if pages > 1 %}
+  <p class="pager">
+    {% if page > 1 %}<a class="btn quiet" href="{{ url_for('programs.program_list', page=page - 1, **args) }}">‹ Previous</a>{% endif %}
+    {% if page < pages %}<a class="btn quiet" href="{{ url_for('programs.program_list', page=page + 1, **args) }}">Next ›</a>{% endif %}
+  </p>
+  {% endif %}
+  <p class="foot">Router times are minutes:seconds per sheet at 100%.</p>
+  {% elif total == 0 and not args %}
+  <p class="note">No programs are loaded yet. <a href="{{ url_for('programs.import_workbook') }}">Load the plywood workbook</a> to bring in the CNC program list.</p>
+  {% else %}
+  <p class="note">No programs match.</p>
+  {% endif %}
+</section>
+{% endblock %}

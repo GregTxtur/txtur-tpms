@@ -18,13 +18,25 @@ def current_user():
     return session.get("user")
 
 
+def require_login():
+    """For Blueprint.before_request: send signed-out visitors to the sign-in page."""
+    if os.environ.get("APP_PASSWORD") and not current_user():
+        return redirect(url_for("auth.login", next=request.full_path.rstrip("?")))
+    return None
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if os.environ.get("APP_PASSWORD") and not current_user():
-            return redirect(url_for("auth.login", next=request.path))
-        return view(*args, **kwargs)
+        return require_login() or view(*args, **kwargs)
     return wrapped
+
+
+def _safe_next(target):
+    """Only follow 'next' back into this site."""
+    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
+        return target
+    return None
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -33,7 +45,7 @@ def login():
     if request.method == "POST":
         if request.form.get("password", "") == os.environ.get("APP_PASSWORD", ""):
             session["user"] = request.form.get("name", "").strip() or "plant"
-            return redirect(request.args.get("next") or url_for("home"))
+            return redirect(_safe_next(request.args.get("next")) or url_for("home"))
         error = "That password didn't match."
     return render_template("login.html", error=error)
 

@@ -177,9 +177,10 @@ def import_workbook():
         upload = request.files.get("workbook")
         want_programs = request.form.get("programs") == "1"
         want_items = request.form.get("items") == "1"
+        want_jobs = request.form.get("jobs") == "1"
         if not upload or not upload.filename.lower().endswith((".xlsx", ".xlsm")):
             flash("Choose the plywood workbook (.xlsx).", "bad")
-        elif not (want_programs or want_items):
+        elif not (want_programs or want_items or want_jobs):
             flash("Tick at least one thing to load.", "bad")
         else:
             try:
@@ -197,6 +198,9 @@ def import_workbook():
                 result["report"] = report
                 result["programs"] = importer.load_programs(conn, programs,
                                                             overwrite=request.form.get("overwrite") == "1")
+            if want_jobs:
+                result["jobs"] = importer.load_jobs(conn, importer.read_jobs(wb), entered_by=user_label())
             db.commit()
-    counts = db.one("select (select count(*) from program) as programs, (select count(*) from item) as items")
+    counts = db.one("select (select count(*) from program) as programs, (select count(*) from item) as items, "
+                    "(select count(*) from cut_order where source = 'workbook') as jobs")
     return render_template("programs/import.html", result=result, counts=counts)

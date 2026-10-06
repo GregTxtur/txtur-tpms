@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Cutting now · TPMS{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="60">{% endblock %}
+{% block body %}
+<section class="wide">
+  <div class="head">
+    <h1>Cutting now</h1>
+    <p class="count">as of {{ now.strftime('%-I:%M %p') }} · refreshes every minute</p>
+  </div>
+  {% if people %}
+  <div class="scroll"><table class="grid">
+    <thead><tr><th>Team member</th><th>On</th><th>Part</th><th>Router</th><th>Since</th><th class="r">Minutes</th>
+      <th class="r">Order, sheets</th><th class="r">Cut before</th><th class="r">Open</th><th class="r">This scan</th></tr></thead>
+    <tbody>
+    {% for name, sessions in people.items() %}
+      {% for s in sessions %}
+      <tr class="{{ 'groupstart' if loop.first }}">
+        {% if loop.first %}<td rowspan="{{ sessions|length }}" class="who"><b>{{ name }}</b>{% if sessions|length > 1 %}<small>{{ sessions|length }} scans</small>{% endif %}</td>{% endif %}
+        {% if s.co %}
+        <td class="nowrap"><a href="{{ url_for('cutorders.cut_order_detail', cut_order_id=s.co.id) }}"><b>{{ s.co.number }}</b></a></td>
+        <td>{{ s.co.description }}{% if s.co.program_number %} <span class="mute">{{ s.co.program_number }}</span>{% endif %}</td>
+        {% else %}
+        <td class="nowrap"><span class="tag {{ 'warn' if not s.earns }}">{{ s.activity_name }}</span></td><td class="mute">off order activity</td>
+        {% endif %}
+        <td>{{ s.machine_code or '' }}</td>
+        <td class="nowrap">{{ s.started_at|localtime('%-I:%M %p') }}</td>
+        <td class="r">{{ s.minutes|round|int }}</td>
+        {% if s.co %}
+        <td class="r">{{ s.co.sheets_required if s.co.sheets_required is not none else '' }}</td>
+        <td class="r">{{ s.co.sheets_cut }}</td>
+        <td class="r big">{{ s.co.sheets_open if s.co.sheets_open is not none else '' }}</td>
+        <td class="r">{% if s.taps %}<b>{{ s.taps }}</b> tapped{% elif s.expected is not none %}<span class="mute">about {{ s.expected }} by the standard</span>{% endif %}</td>
+        {% else %}<td></td><td></td><td></td><td></td>{% endif %}
+      </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="foot">"Cut before" is what earlier scans recorded. "This scan" is the live tap count if the team member is using the counter; otherwise it is an estimate from the program's standard time, shown only when they are on a single cut order.</p>
+  {% else %}
+  <p class="note">Nobody is scanned onto anything right now.</p>
+  {% endif %}
+</section>
+{% endblock %}

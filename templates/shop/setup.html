@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Setup · TPMS{% endblock %}
+{% block body %}
+<section class="wide">
+  <h1>Setup</h1>
+  <div class="cards">
+    <a class="card" href="{{ url_for('shop.team') }}"><b>Team members</b><span>{{ counts.team }} active. Add people and set the PIN each one uses on their phone.</span></a>
+    <a class="card" href="{{ url_for('shop.activities') }}"><b>Off order activities and standards</b><span>{{ counts.activities }} scan codes. Earned minutes for tool changes and the like, the changeover standard, and the posters.</span></a>
+    <a class="card" href="{{ url_for('shop.fixup') }}"><b>Fix-up</b><span>{% if counts.fixups %}{{ counts.fixups }} forgotten scan{{ '' if counts.fixups == 1 else 's' }} waiting for a count.{% else %}No forgotten scans waiting.{% endif %}</span></a>
+    <a class="card" href="{{ url_for('items.item_list') }}"><b>Plywood</b><span>{{ counts['items'] }} stocked items. The item master, plywood types and suppliers.</span></a>
+    <a class="card" href="{{ url_for('programs.import_workbook') }}"><b>Load the plywood workbook</b><span>Bring in the program list, starting stock and open jobs from the old workbook.</span></a>
+  </div>
+</section>
+{% endblock %}

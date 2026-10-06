@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ co.number }} cover sheet</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='tpms.css') }}?v={{ app_version }}">
+</head>
+<body class="paper">
+<div class="printbar">
+  <a href="{{ url_for('cutorders.cut_order_detail', cut_order_id=co.id) }}">‹ Back to {{ co.number }}</a>
+  <button onclick="window.print()">Print</button>
+</div>
+<article class="coversheet">
+  <header>
+    <div class="scanbox on">
+      {{ qr_on }}
+      <strong>SCAN ON</strong><span>CUT ORDER</span>
+    </div>
+    <div class="cohead">
+      <p class="kicker">Txtur plywood · cut order</p>
+      <h1>{{ co.number }}</h1>
+      <p class="part">{{ co.description or 'Cut order' }}</p>
+      <p class="router">{{ co.machine_name or 'Router not set' }}</p>
+    </div>
+  </header>
+
+  <table class="cofacts">
+    <tr><th>Shop order</th><td>{{ co.shop_order or '—' }}</td><th>Job</th><td>{{ co.job_number or '—' }}</td></tr>
+    <tr><th>Program</th><td>{{ co.program_number or '—' }}{% if co.program_name %}<small>{{ co.program_name }}</small>{% endif %}</td>
+        <th>Due</th><td>{{ co.due_date.strftime('%m/%d/%y') if co.due_date else '—' }}</td></tr>
+    <tr><th>Plywood</th><td colspan="3">{{ co.plywood or '—' }}</td></tr>
+  </table>
+
+  <div class="conumbers">
+    <div><b>{{ co.sheets_required if co.sheets_required is not none else '—' }}</b><span>sheets to cut</span></div>
+    <div><b>{{ co.qty_units|qty or '—' }}</b><span>units ordered</span></div>
+    <div><b>{{ '%.3g'|format(co.yield_per_sheet) if co.yield_per_sheet else '—' }}</b><span>units per sheet</span></div>
+    <div><b>{{ std|mmss or '—' }}</b><span>minutes per sheet</span></div>
+  </div>
+
+  {% if co.notes %}<p class="conotes"><b>Notes:</b> {{ co.notes }}</p>{% endif %}
+
+  <div class="cotally">
+    <p>Sheets cut — one mark per sheet, or use the counter on your phone</p>
+    <div class="boxes">{% for n in range([co.sheets_required or 20, 60]|min) %}<i></i>{% endfor %}</div>
+  </div>
+
+  <footer>
+    <div class="howto">
+      <p><b>Starting:</b> scan the code at the top of this sheet.</p>
+      <p><b>Stopping</b> (done, lunch, end of shift): scan the code at the bottom and enter the sheets you cut.</p>
+      <p>Camera will not read it? Go to <b>{{ short_url }}</b> and type <b>{{ co.number }}</b>.</p>
+      <p class="printed">Released {{ co.released_at|localtime if co.released_at else '' }}{% if co.released_by %} by {{ co.released_by }}{% endif %}</p>
+    </div>
+    <div class="scanbox off">
+      {{ qr_off }}
+      <strong>SCAN OFF</strong><span>CUT ORDER</span>
+    </div>
+  </footer>
+</article>
+</body>
+</html>

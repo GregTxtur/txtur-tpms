@@ -6,22 +6,23 @@
     <p class="flash bad">The database is not available: {{ db.detail }}</p>
   {% elif stats %}
   <div class="tiles">
+    <a class="tile" href="{{ url_for('shop.cutting') }}"><b>{{ stats.on_now }}</b><span>team member{{ '' if stats.on_now == 1 else 's' }} scanned on right now</span></a>
+    <a class="tile" href="{{ url_for('cutorders.cut_order_list', view='queued') }}"><b>{{ stats.released }}</b><span>cut orders released to the floor · {{ stats.filed }} filed</span></a>
     <a class="tile" href="{{ url_for('inventory.board') }}"><b>{{ stats.sheets|num }}</b><span>sheets on hand across {{ stats.item_count }} plywood items</span></a>
-    <a class="tile" href="{{ url_for('programs.program_list') }}"><b>{{ stats.programs|num }}</b><span>CNC programs on file</span></a>
-    <a class="tile" href="{{ url_for('programs.program_list', time='missing') }}"><b>{{ stats.no_time|num }}</b><span>programs with no router time yet</span></a>
-    <a class="tile" href="{{ url_for('inventory.ledger') }}"><b>{{ stats.txns_week|num }}</b><span>inventory entries in the last 7 days</span></a>
+    <a class="tile" href="{{ url_for('programs.program_list', time='missing') }}"><b>{{ stats.no_time|num }}</b><span>of {{ stats.programs|num }} programs have no router time yet</span></a>
   </div>
+  {% if stats.fixups %}<p class="flash">{{ stats.fixups }} forgotten scan{{ '' if stats.fixups == 1 else 's' }} waiting for a count. <a href="{{ url_for('shop.fixup') }}">Fix up</a>.</p>{% endif %}
   {% if stats.item_count == 0 or stats.programs == 0 %}
   <p class="note">Nothing is loaded yet. <a href="{{ url_for('programs.import_workbook') }}">Load the plywood workbook</a> to bring in the CNC program list and the starting plywood items, or set the plywood up by hand under <a href="{{ url_for('items.item_list') }}">Plywood setup</a>.</p>
   {% endif %}
   {% endif %}
   <h2>Do something</h2>
   <ul class="links">
+    <li><a href="{{ url_for('cutorders.cut_order_form') }}">Make a cut order</a> — and print its cover sheet with the scan codes</li>
+    <li><a href="{{ url_for('shop.minutes') }}">See today's minutes</a> — on the clock against earned, per team member</li>
     <li><a href="{{ url_for('inventory.receive') }}">Receive a delivery</a> — in packs or sheets</li>
     <li><a href="{{ url_for('inventory.adjust') }}">Enter a count or an adjustment</a></li>
-    <li><a href="{{ url_for('inventory.ledger') }}">See every inventory movement</a></li>
-    <li><a href="{{ url_for('items.item_list') }}">Set up plywood</a> — items, types and suppliers</li>
-    <li><a href="{{ url_for('programs.import_workbook') }}">Load the plywood workbook</a></li>
+    <li><a href="{{ url_for('shop.setup') }}">Setup</a> — team members, off order activities and posters, plywood, the workbook</li>
   </ul>
   <p class="foot">tpms {{ version }} on {{ host }} · database {{ 'ok' if db.ok else 'down' }} · {{ now }}</p>
 </section>

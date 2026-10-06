@@ -1,17 +1,20 @@
-"""TPMS — Txtur Plywood Management System. Build 1: item master, program list, inventory."""
+"""TPMS — Txtur Plywood Management System: plywood stock, CNC programs, cut orders and scan tracking."""
 import logging
 import os
 import socket
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from flask import Flask, jsonify, render_template
+from urllib.parse import urlsplit
+
+from flask import Flask, jsonify, render_template, request
 import psycopg
 
 import db
+import floor
 from auth import init_auth, login_required
 from util import PLANT_TZ, fmt_secs, item_label
 
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.2.0"
 
 
 def create_app():
@@ -20,6 +23,10 @@ def create_app():
     app.config["DATABASE_URL"] = os.environ.get("DATABASE_URL", "")
     app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # In production the site is only ever reached over https (nginx), so the cookie may say so.
+    app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") == "production"
+    # A phone that has said who it is (name + PIN) stays remembered for six months.
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=180)
     app.config["MIGRATION_ERROR"] = ""
     init_auth(app)
     app.teardown_appcontext(db.close_db)
@@ -34,8 +41,23 @@ def create_app():
             logging.exception("migration failed")
             app.config["MIGRATION_ERROR"] = str(exc).strip()
 
+    @app.before_request
+    def same_site_posts_only():
+        """Refuse a form post that another website sent on someone's behalf.
+
+        Office sign-on arrives as a header from the gate, not as a cookie of this app, so the usual
+        cookie protections do not cover it. A browser always says where a form post came from; if
+        that is not this site, the post is turned away.
+        """
+        if request.method != "POST":
+            return None
+        source = request.headers.get("Origin") or request.headers.get("Referer")
+        if source and urlsplit(source).netloc != request.host:
+            return ("This form was sent from another site and was not accepted.", 403)
+        return None
+
     @app.template_filter("localtime")
-    def localtime(value, fmt="%m/%d/%y %I:%M %p"):
+    def localtime(value, fmt="%m/%d/%y %-I:%M %p"):
         if not value:
             return ""
         return value.astimezone(PLANT_TZ).strftime(fmt)
@@ -51,6 +73,22 @@ def create_app():
         return f"{value:,.{places}f}"
 
     app.jinja_env.globals["item_label"] = item_label
+
+    @app.template_filter("qty")
+    def qty(value):
+        """A quantity without a pointless .0: 6, 6.5, 1,250."""
+        if value is None:
+            return ""
+        value = float(value)
+        return f"{value:,.0f}" if value.is_integer() else f"{value:,.1f}"
+
+    @app.template_filter("hm")
+    def hm(minutes):
+        """Minutes as 3 h 05 min, for the daily minutes view."""
+        if minutes is None:
+            return ""
+        total = int(round(minutes))
+        return f"{total // 60} h {total % 60:02d} min" if total >= 60 else f"{total} min"
     app.jinja_env.globals["app_version"] = APP_VERSION
 
     def db_status():
@@ -74,6 +112,8 @@ def create_app():
         status = db_status()
         stats = None
         if status["ok"]:
+            if floor.close_stale(db.get_db()):
+                db.commit()
             stats = db.one("""
                 select (select count(*) from item where active) as item_count,
                        (select coalesce(sum(qty_sheets), 0) from inventory_txn) as sheets,
@@ -81,11 +121,15 @@ def create_app():
                        (select count(*) from program p where status <> 'retired'
                           and not exists (select 1 from program_time t where t.program_id = p.id)) as no_time,
                        (select count(*) from inventory_txn
-                         where created_at > now() - interval '7 days') as txns_week
+                         where created_at > now() - interval '7 days') as txns_week,
+                       (select count(*) from cut_order where status = 'queued') as released,
+                       (select count(*) from cut_order where status = 'filed') as filed,
+                       (select count(distinct team_member_id) from scan_session where ended_at is null) as on_now,
+                       (select count(*) from scan_session where needs_review) as fixups
             """)
         return render_template(
             "home.html", version=APP_VERSION, host=socket.gethostname(), db=status, stats=stats,
-            now=datetime.now(timezone.utc).astimezone(PLANT_TZ).strftime("%m/%d/%y %I:%M %p"),
+            now=datetime.now(timezone.utc).astimezone(PLANT_TZ).strftime("%m/%d/%y %-I:%M %p"),
         )
 
     @app.route("/health")
@@ -96,7 +140,10 @@ def create_app():
     from views.items import bp as items_bp
     from views.inventory import bp as inventory_bp
     from views.programs import bp as programs_bp
-    for blueprint in (items_bp, inventory_bp, programs_bp):
+    from views.cutorders import bp as cutorders_bp
+    from views.shop import bp as shop_bp
+    from views.scan import bp as scan_bp
+    for blueprint in (items_bp, inventory_bp, programs_bp, cutorders_bp, shop_bp, scan_bp):
         app.register_blueprint(blueprint)
 
     return app

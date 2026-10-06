@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ co.number }} · TPMS{% endblock %}
+{% block body %}
+<section class="wide">
+  <p class="crumb"><a href="{{ url_for('cutorders.cut_order_list') }}">Cut orders</a> ›</p>
+  <div class="head">
+    <h1>{{ co.number }} <span class="tag {{ 'ok' if co.status == 'queued' }} large">{{ labels[co.status] }}</span></h1>
+    <div class="actions">
+      {% if co.status in ('queued', 'complete') %}<a class="btn" href="{{ url_for('cutorders.cut_order_print', cut_order_id=co.id) }}">Print cover sheet</a>{% endif %}
+      {% if co.status in ('filed', 'queued') %}<a class="btn quiet" href="{{ url_for('cutorders.cut_order_form', cut_order_id=co.id) }}">Edit</a>{% endif %}
+      <a class="btn quiet" href="{{ url_for('cutorders.cut_order_form', copy=co.id) }}">Copy to a new one</a>
+    </div>
+  </div>
+
+  <div class="facts">
+    <div><span>Part</span><b>{{ co.description or '—' }}</b></div>
+    <div><span>Shop order</span><b>{{ co.shop_order or '—' }}</b></div>
+    <div><span>Job</span><b>{{ co.job_number or '—' }}</b></div>
+    <div><span>Program</span><b>{% if co.program_number %}<a href="{{ url_for('programs.program_form', program_id=co.program_id) }}">{{ co.program_number }}</a>{% else %}none{% endif %}</b></div>
+    <div><span>Plywood</span><b>{{ co.plywood or 'not chosen' }}</b></div>
+    <div><span>Router</span><b>{{ co.machine_name or 'not chosen' }}</b></div>
+    <div><span>Due</span><b>{{ co.due_date.strftime('%m/%d/%y') if co.due_date else '—' }}</b></div>
+    <div><span>Standard time</span><b>{% if std %}{{ std|mmss }} per sheet{% else %}none on file{% endif %}</b></div>
+  </div>
+
+  <div class="tiles four">
+    <div class="tile"><b>{{ co.qty_units|qty or '—' }}</b><span>units ordered</span></div>
+    <div class="tile"><b>{{ co.sheets_required if co.sheets_required is not none else '—' }}</b><span>sheets required</span></div>
+    <div class="tile"><b>{{ co.sheets_cut }}</b><span>sheets cut{% if co.units_cut is not none %} · {{ co.units_cut|qty }} units{% endif %}</span></div>
+    <div class="tile"><b>{{ co.sheets_open if co.sheets_open is not none else '—' }}</b><span>sheets open</span></div>
+  </div>
+  {% if not co.program_id %}<p class="flash">This cut order has no program, so cutting on it earns no minutes. Add the program with Edit.</p>
+  {% elif not std %}<p class="flash">Program {{ co.program_number }} has no router time on file, so cutting on it earns no minutes until one is entered.</p>{% endif %}
+  {% if co.notes %}<p class="note">{{ co.notes }}</p>{% endif %}
+
+  <div class="actions row">
+    {% if co.status == 'filed' %}
+    <form method="post" action="{{ url_for('cutorders.cut_order_status', cut_order_id=co.id) }}" class="inline">
+      <input type="hidden" name="action" value="release">
+      <select name="machine_id" aria-label="Router">
+        <option value="">Router…</option>
+        {% for m in machines %}<option value="{{ m.id }}" {{ 'selected' if co.machine_id == m.id }}>{{ m.name }}</option>{% endfor %}
+      </select>
+      <button type="submit">Release and print</button>
+    </form>
+    {% endif %}
+    {% for action, label, show in (
+        ('unrelease', 'Back to filed', co.status == 'queued' and not sessions),
+        ('complete', 'Mark complete', co.status == 'queued'),
+        ('reopen', 'Reopen', co.status in ('complete', 'cancelled')),
+        ('cancel', 'Cancel this cut order', co.status in ('filed', 'queued'))) %}
+    {% if show %}
+    <form method="post" action="{{ url_for('cutorders.cut_order_status', cut_order_id=co.id) }}">
+      <input type="hidden" name="action" value="{{ action }}"><button type="submit" class="quiet">{{ label }}</button>
+    </form>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <h2>Scans</h2>
+  {% if sessions %}
+  <div class="scroll"><table class="grid">
+    <thead><tr><th>Team member</th><th>Router</th><th>Scanned on</th><th>Scanned off</th><th class="r">Minutes</th>
+      <th class="r">Sheets</th><th class="r">Taps</th><th class="r">Changeover</th><th>Closed by</th></tr></thead>
+    <tbody>{% for s in sessions %}
+      <tr>
+        <td>{{ s.member_name }}</td><td>{{ s.machine_code or '' }}</td>
+        <td class="nowrap">{{ s.started_at|localtime }}</td>
+        <td class="nowrap">{% if s.ended_at %}{{ s.ended_at|localtime }}{% else %}<span class="tag ok">on now</span>{% endif %}</td>
+        <td class="r">{% if s.ended_at %}{{ ((s.ended_at - s.started_at).total_seconds() / 60)|round|int }}{% endif %}</td>
+        <td class="r">{{ s.sheets if s.sheets is not none else '' }}</td>
+        <td class="r">{{ s.taps or '' }}</td>
+        <td class="r">{{ (s.fixed_minutes ~ ' min') if s.fixed_minutes else '' }}</td>
+        <td>{% if s.needs_review %}<a href="{{ url_for('shop.fixup') }}"><span class="tag warn">needs fix-up</span></a>{% elif s.closed_by == 'auto' %}system{% else %}{{ s.closed_by }}{% endif %}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="note">Nobody has scanned onto this cut order yet.</p>
+  {% endif %}
+  <p class="foot">Made {{ co.created_at|localtime }}{% if co.created_by %} by {{ co.created_by }}{% endif %}{% if co.released_at %} · released {{ co.released_at|localtime }}{% endif %}{% if co.completed_at %} · complete {{ co.completed_at|localtime }}{% endif %}{% if co.source == 'workbook' %} · loaded from the plywood workbook{% endif %}</p>
+</section>
+{% endblock %}

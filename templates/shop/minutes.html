@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Daily minutes · TPMS{% endblock %}
+{% block body %}
+<section class="wide">
+  <div class="head">
+    <h1>Daily minutes <span class="sub2">{{ day.strftime('%A, %B %d, %Y')|replace(' 0', ' ') }}</span></h1>
+    <div class="actions">
+      <a class="btn quiet" href="{{ url_for('shop.minutes', date=prev.isoformat()) }}">‹ Day before</a>
+      <form method="get" class="inline tight"><input type="date" name="date" value="{{ day.isoformat() }}" onchange="this.form.submit()" aria-label="Day"></form>
+      {% if day < today %}<a class="btn quiet" href="{{ url_for('shop.minutes', date=next.isoformat()) }}">Day after ›</a>{% endif %}
+      <a class="btn quiet" href="{{ url_for('shop.minutes_xlsx', date=day.isoformat()) }}">Download as Excel</a>
+    </div>
+  </div>
+  {% if people %}
+  <div class="scroll"><table class="grid">
+    <thead><tr>
+      <th>Team member</th><th class="r">On the clock</th><th class="r">Earned</th><th class="r">Earned %</th>
+      <th class="r">Cutting</th><th class="r">Changeovers</th><th class="r">Activities</th><th class="r">Sheets</th>
+      <th>First scan</th><th>Last scan</th><th>Cut orders</th><th>Off order</th>
+    </tr></thead>
+    <tbody>
+    {% for p in people %}
+      <tr>
+        <td><b>{{ p.name }}</b>{% if p.open_now %} <span class="tag ok">on now</span>{% endif %}{% if p.needs_review %} <a href="{{ url_for('shop.fixup') }}"><span class="tag warn">needs fix-up</span></a>{% endif %}</td>
+        <td class="r nowrap">{{ p.clock|hm }}</td>
+        <td class="r nowrap big">{{ p.earned|hm }}</td>
+        <td class="r big">{% if p.ratio is not none %}{{ p.ratio|round|int }}%{% endif %}</td>
+        <td class="r">{{ p.earn_cut|round|int }}</td>
+        <td class="r">{{ p.earn_change|round|int }}</td>
+        <td class="r">{{ p.earn_activity|round|int }}</td>
+        <td class="r">{{ p.sheets }}</td>
+        <td class="nowrap">{{ p.first|localtime('%-I:%M %p') }}</td>
+        <td class="nowrap">{{ p.last|localtime('%-I:%M %p') }}</td>
+        <td>{{ p.orders|join(', ') }}{% if p.no_standard %}<br><span class="tag warn">no standard: {{ p.no_standard|join(', ') }}</span>{% endif %}</td>
+        <td>{% for name, n in p.activities.items() %}<span class="nowrap">{{ name }} ×{{ n }}{% if name in p.idle %} ({{ p.idle[name]|round|int }} min, not earning){% endif %}</span>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr>
+      <td>Total</td><td class="r nowrap">{{ totals.clock|hm }}</td><td class="r nowrap">{{ totals.earned|hm }}</td>
+      <td class="r">{% if totals.ratio is not none %}{{ totals.ratio|round|int }}%{% endif %}</td>
+      <td class="r">{{ totals.earn_cut|round|int }}</td><td class="r">{{ totals.earn_change|round|int }}</td>
+      <td class="r">{{ totals.earn_activity|round|int }}</td><td class="r">{{ totals.sheets }}</td><td colspan="4"></td>
+    </tr></tfoot>
+  </table></div>
+  {% else %}
+  <p class="note">Nobody scanned anything on this day.</p>
+  {% endif %}
+  <div class="explain">
+    <p><b>On the clock</b> is the time a team member was scanned onto anything. Being on several cut orders at once still counts each minute once.</p>
+    <p><b>Earned</b> is sheets cut × the program's standard router time, plus the changeover standard for each new program, plus the standard for each earning off order activity. Cutting is credited on the day the sheet count was entered.</p>
+    <p>A cut order marked <b>no standard</b> had sheets cut on a program with no router time on file, so those sheets earned nothing. Enter the time on the program and this page will credit them.</p>
+  </div>
+</section>
+{% endblock %}

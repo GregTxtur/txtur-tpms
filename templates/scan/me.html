@@ -1,0 +1,41 @@
+{% extends "scan/base.html" %}
+{% block title %}My work · TPMS{% endblock %}
+{% block body %}
+<h1>My work</h1>
+{% if error %}<section class="result warn"><p>{{ error }}</p></section>{% endif %}
+{% if not sessions %}
+<p class="lead">You are not scanned onto anything. Scan the <b>SCAN ON</b> code on a cut order to start.</p>
+{% endif %}
+{% for s in sessions %}
+  {% if s.cut_order %}{% set co = s.cut_order %}
+  <article class="work" id="s{{ s.id }}">
+    <header><b>{{ co.number }}</b><span>on since {{ s.started_at|localtime('%-I:%M %p') }}</span></header>
+    <p class="about"><b>{{ co.description or 'Cut order' }}</b>{% if co.program_number %} · {{ co.program_number }}{% endif %}{% if co.machine_code %} · {{ co.machine_code }}{% endif %}</p>
+    <div class="counter">
+      <form method="post" action="{{ url_for('scan.tap', session_id=s.id) }}"><input type="hidden" name="delta" value="-1"><button type="submit" class="minus" {{ 'disabled data-off' if not s.taps }} aria-label="Take one off">−</button></form>
+      <div class="count"><b>{{ s.taps }}</b><span>sheet{{ '' if s.taps == 1 else 's' }} this time</span></div>
+      <form method="post" action="{{ url_for('scan.tap', session_id=s.id) }}"><input type="hidden" name="delta" value="1"><button type="submit" class="plus" aria-label="Add one sheet">+1</button></form>
+    </div>
+    <p class="mini">{% if co.sheets_open is not none %}{{ co.sheets_open }} of {{ co.sheets_required }} sheets were open before this scan{% else %}{{ co.sheets_cut }} sheets cut before this scan{% endif %}. Tap +1 at each sheet change.</p>
+    <a class="pbtn quiet" href="{{ url_for('scan.cut_order_off', token=co.token) }}">Scan off {{ co.number }}</a>
+  </article>
+  {% else %}
+  <article class="work act" id="s{{ s.id }}">
+    <header><b>{{ s.activity_name }}</b><span>on since {{ s.started_at|localtime('%-I:%M %p') }}</span></header>
+    <p class="about">{{ s.machine_name or '' }}{% if not s.earns %} · not earning{% elif s.fixed_minutes %} · earns {{ s.fixed_minutes }} min{% endif %}</p>
+    <form method="post" action="{{ url_for('scan.end_activity', session_id=s.id) }}"><button type="submit" class="pbtn quiet">Done with {{ s.activity_name }}</button></form>
+  </article>
+  {% endif %}
+{% endfor %}
+{% if sessions|length > 1 %}<p class="stack"><a class="pbtn" href="{{ url_for('scan.off_all') }}">Scan off everything</a></p>{% endif %}
+<details class="typed">
+  <summary>Camera will not read a code?</summary>
+  <form method="post" action="{{ url_for('scan.find') }}" class="stack">
+    <label>Cut order number
+      <input name="number" inputmode="numeric" placeholder="like 42, from CO-0042" required>
+    </label>
+    <button type="submit" name="direction" value="on" class="pbtn">Scan on</button>
+    <button type="submit" name="direction" value="off" class="pbtn quiet">Scan off</button>
+  </form>
+</details>
+{% endblock %}

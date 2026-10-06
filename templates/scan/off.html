@@ -1,0 +1,16 @@
+{% extends "scan/base.html" %}
+{% from "scan/_standing.html" import standing, about %}
+{% block body %}
+<h1>Scan off {{ co.number }}</h1>
+{{ about(co) }}{{ standing(co) }}
+{% if error %}<section class="result warn"><p>{{ error }}</p></section>{% endif %}
+<form method="post" class="stack">
+  {% if confirm_value %}<input type="hidden" name="confirm" value="{{ confirm_value }}">{% endif %}
+  <label>Sheets you cut this time
+    <input name="sheets" value="{{ value }}" inputmode="numeric" pattern="\d*" autocomplete="off" required autofocus class="big">
+    <small>{% if s.taps %}Your counter says {{ s.taps }}. Change it if that is not right. {% endif %}Only what you cut since you scanned on at {{ s.started_at|localtime('%-I:%M %p') }}, not the order total.</small>
+  </label>
+  <button type="submit" class="pbtn">{{ 'Yes, that is right — scan off' if confirm_value else 'Scan off' }}</button>
+  <a class="pbtn quiet" href="{{ url_for('scan.me') }}">Stay on</a>
+</form>
+{% endblock %}

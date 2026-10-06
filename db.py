@@ -1,5 +1,6 @@
 """Database access for TPMS: one connection per request, plus the migration runner."""
 import glob
+import importlib.util
 import os
 
 import psycopg
@@ -44,7 +45,7 @@ def rollback():
 
 
 def run_migrations(url):
-    """Apply migrations/NNN_*.sql in order, once each. Returns the names applied."""
+    """Apply migrations/NNN_*.sql and NNN_*.py in order, once each. Returns the names applied."""
     applied = []
     with psycopg.connect(url, autocommit=True) as conn:
         conn.execute("select pg_advisory_lock(%s)", (_LOCK_KEY,))
@@ -54,14 +55,20 @@ def run_migrations(url):
                 "name text primary key, applied_at timestamptz not null default now())"
             )
             done = {r[0] for r in conn.execute("select name from schema_migrations")}
-            for path in sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql"))):
+            paths = glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql")) + glob.glob(os.path.join(MIGRATIONS_DIR, "*.py"))
+            for path in sorted(paths, key=os.path.basename):
                 name = os.path.basename(path)
-                if name in done:
+                if name in done or name.startswith("_"):
                     continue
-                with open(path, encoding="utf-8") as fh:
-                    sql = fh.read()
                 with conn.transaction():
-                    conn.execute(sql)
+                    if name.endswith(".sql"):
+                        with open(path, encoding="utf-8") as fh:
+                            conn.execute(fh.read())
+                    else:  # a Python step: the file defines run(conn)
+                        spec = importlib.util.spec_from_file_location("tpms_migration_" + name[:-3], path)
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        module.run(conn)
                     conn.execute("insert into schema_migrations (name) values (%s)", (name,))
                 applied.append(name)
         finally:

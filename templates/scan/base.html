@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#212121">
+<title>{% block title %}TPMS{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='tpms.css') }}?v={{ app_version }}">
+</head>
+<body class="phone">
+<header class="phonebar">
+  <a href="{{ url_for('scan.me') }}">TPMS</a>
+  {% if member %}<form method="post" action="{{ url_for('scan.switch') }}"><span>{{ member.name }}</span><button type="submit">not you?</button></form>{% endif %}
+</header>
+<main>{% block body %}{% endblock %}</main>
+<script>
+// A second press of the same button does nothing: grey the buttons out once a form is on its way.
+document.addEventListener('submit', function (e) {
+  var buttons = e.target.querySelectorAll('button');
+  setTimeout(function () { buttons.forEach(function (b) { b.disabled = true; }); }, 0);
+});
+window.addEventListener('pageshow', function () {
+  document.querySelectorAll('form button').forEach(function (b) { if (!b.hasAttribute('data-off')) b.disabled = false; });
+});
+</script>
+</body>
+</html>

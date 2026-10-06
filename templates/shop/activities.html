@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Off order activities · TPMS{% endblock %}
+{% block body %}
+<section class="wide narrowish">
+  <p class="crumb"><a href="{{ url_for('shop.setup') }}">Setup</a> ›</p>
+  <h1>Off order activities</h1>
+  <p class="lede">Work that is not on a cut order. Each one is a scan code on the poster at every router, with a scan on and a scan off. An earning activity earns its standard minutes each time it is scanned, however long it actually took.</p>
+
+  <div class="scroll"><table class="grid">
+    <thead><tr><th>Activity</th><th>Earns minutes?</th><th>Standard minutes</th><th></th><th class="r">Times used</th><th></th></tr></thead>
+    <tbody>
+    {% for a in rows %}
+      <tr class="{{ '' if a.active else 'off' }}">
+        <form method="post" id="act{{ a.id }}"><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="{{ a.id }}"></form>
+        <td><input form="act{{ a.id }}" name="name" value="{{ a.name }}" required class="cell"></td>
+        <td><label class="cellcheck"><input form="act{{ a.id }}" type="checkbox" name="earns" value="1" {{ 'checked' if a.earns }}> earns</label></td>
+        <td><input form="act{{ a.id }}" name="earned_minutes" value="{{ a.earned_minutes }}" inputmode="numeric" class="cell short"></td>
+        <td><button form="act{{ a.id }}" type="submit" class="quiet">Save</button></td>
+        <td class="r">{{ a.used }}</td>
+        <td>
+          <form method="post"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ a.id }}">
+            <button type="submit" class="quiet">{{ 'Retire' if a.active else 'Bring back' }}</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+      <tr class="addrow">
+        <form method="post" id="actnew"><input type="hidden" name="action" value="add"></form>
+        <td><input form="actnew" name="name" placeholder="New activity, e.g. Change Spoilboard" required class="cell"></td>
+        <td><label class="cellcheck"><input form="actnew" type="checkbox" name="earns" value="1" checked> earns</label></td>
+        <td><input form="actnew" name="earned_minutes" placeholder="0" inputmode="numeric" class="cell short"></td>
+        <td><button form="actnew" type="submit">Add</button></td><td></td><td></td>
+      </tr>
+    </tbody>
+  </table></div>
+  <p class="foot">A retired activity's code answers "no longer in use" if someone scans an old poster. Non-earning activities, like waiting on material, earn nothing; their time still counts on the clock and shows by reason on the daily minutes.</p>
+
+  <h2>Posters</h2>
+  <p>One poster per router, so every scan also records which machine it happened on. Print again whenever an activity is added.</p>
+  <p class="actions">{% for m in machines %}<a class="btn quiet" href="{{ url_for('shop.poster', machine_id=m.id) }}">{{ m.name }} poster</a>{% endfor %}</p>
+
+  <h2>Standards</h2>
+  <form method="post" class="form">
+    <input type="hidden" name="action" value="settings">
+    <div class="row4">
+      <label>Changeover, minutes
+        <input name="changeover_minutes" value="{{ settings.changeover_minutes }}" inputmode="numeric">
+        <small>Earned once per cut order. Not earned when the same program runs back to back on a router.</small>
+      </label>
+      <label>Nearly-cut warning, %
+        <input name="mostly_cut_pct" value="{{ settings.mostly_cut_pct }}" inputmode="numeric">
+        <small>Scanning onto a cut order at or past this share cut shows a warning.</small>
+      </label>
+      <label>Day ends at
+        <input name="day_end" value="{{ settings.day_end }}" placeholder="17:00">
+        <small>A forgotten scan is closed back to this time.</small>
+      </label>
+      <label>Hours of grace
+        <input name="auto_close_grace_hours" value="{{ settings.auto_close_grace_hours }}" inputmode="numeric">
+        <small>How long after the day ends a scan is left open, for overtime.</small>
+      </label>
+    </div>
+    <p><button type="submit">Save standards</button></p>
+  </form>
+</section>
+{% endblock %}

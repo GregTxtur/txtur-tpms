@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Team members · TPMS{% endblock %}
+{% block body %}
+<section class="sheet">
+  <p class="crumb"><a href="{{ url_for('shop.setup') }}">Setup</a> ›</p>
+  <h1>Team members</h1>
+  <p class="lede">Everyone who scans. The first time a phone scans a code it asks who is holding it: they tap their name and enter their PIN, and the phone remembers them after that.</p>
+  <form method="post" class="inline">
+    <input type="hidden" name="action" value="add">
+    <input name="name" placeholder="Name" required>
+    <input name="pin" placeholder="PIN, 4 to 6 digits" inputmode="numeric" pattern="\d{4,6}" required class="short">
+    <button type="submit">Add</button>
+  </form>
+  {% if rows %}
+  <table class="grid">
+    <thead><tr><th>Name</th><th>PIN</th><th>Last scan</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="{{ '' if r.active else 'off' }}">
+        <td>
+          <form method="post" class="inline tight">
+            <input type="hidden" name="action" value="rename"><input type="hidden" name="id" value="{{ r.id }}">
+            <input name="name" value="{{ r.name }}" required>
+            <button type="submit" class="quiet">Rename</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" class="inline tight">
+            <input type="hidden" name="action" value="pin"><input type="hidden" name="id" value="{{ r.id }}">
+            <input name="pin" placeholder="{{ 'new PIN' if r.pin_hash else 'set a PIN' }}" inputmode="numeric" pattern="\d{4,6}" required class="short">
+            <button type="submit" class="quiet">{{ 'Change' if r.pin_hash else 'Set' }}</button>
+          </form>
+        </td>
+        <td class="nowrap">{% if r.on_now %}<span class="tag ok">on now</span>{% else %}{{ r.last_scan|localtime('%m/%d/%y') }}{% endif %}{% if r.locked %} <span class="tag bad" title="Too many wrong PIN tries. Setting a new PIN unlocks it.">locked out</span>{% elif r.failed_pins %} <span class="tag warn">{{ r.failed_pins }} wrong PIN {{ 'try' if r.failed_pins == 1 else 'tries' }}</span>{% endif %}</td>
+        <td>
+          <form method="post"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ r.id }}">
+            <button type="submit" class="quiet">{{ 'Retire' if r.active else 'Bring back' }}</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="note">Nobody is set up yet. Add the first team member above.</p>
+  {% endif %}
+  <p class="foot">PINs are stored scrambled and cannot be read back. If someone forgets theirs, set a new one here. Five wrong tries locks that person out for five minutes, and each wrong try after that doubles the wait. Setting a new PIN unlocks them and signs out any phone still remembering the old one.</p>
+</section>
+{% endblock %}

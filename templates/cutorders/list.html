@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Cut orders · TPMS{% endblock %}
+{% block body %}
+<section class="wide">
+  <div class="head">
+    <h1>Cut orders</h1>
+    <div class="actions"><a class="btn" href="{{ url_for('cutorders.cut_order_form') }}">New cut order</a></div>
+  </div>
+  <div class="tabs">
+    {% for key, label in (('open', 'Open'), ('queued', 'Released'), ('filed', 'Filed'), ('complete', 'Complete'), ('all', 'All')) %}
+    <a href="{{ url_for('cutorders.cut_order_list', view=key, q=q or none) }}" class="{{ 'on' if view == key }}">{{ label }}{% if key in counts %} <span>{{ counts[key] }}</span>{% endif %}</a>
+    {% endfor %}
+    <form method="get" class="find">
+      <input type="hidden" name="view" value="{{ view }}">
+      <input name="q" value="{{ q }}" placeholder="Shop order, job, part, program or CO number">
+      <button type="submit">Find</button>
+    </form>
+  </div>
+  {% if rows %}
+  <div class="scroll"><table class="grid">
+    <thead><tr>
+      <th>Cut order</th><th>Status</th><th>Shop order</th><th>Job</th><th>Part</th><th>Program</th><th>Plywood</th>
+      <th>Router</th><th class="r">Units</th><th class="r">Sheets</th><th class="r">Cut</th><th class="r">Open</th>
+      <th>Due</th><th>On it now</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for c in rows %}
+      <tr class="{{ 'off' if c.status in ('complete', 'cancelled') }}">
+        <td class="nowrap"><a href="{{ url_for('cutorders.cut_order_detail', cut_order_id=c.id) }}"><b>{{ c.number }}</b></a></td>
+        <td><span class="tag {{ 'ok' if c.status == 'queued' }}">{{ labels[c.status] }}</span></td>
+        <td>{{ c.shop_order }}</td><td>{{ c.job_number }}</td><td>{{ c.description }}</td>
+        <td class="nowrap">{% if c.program_number %}{{ c.program_number }}{% else %}<span class="tag warn">none</span>{% endif %}</td>
+        <td class="nowrap">{{ c.plywood }}</td><td>{{ c.machine_code or '' }}</td>
+        <td class="r">{{ c.qty_units|qty }}</td>
+        <td class="r">{{ c.sheets_required if c.sheets_required is not none else '' }}</td>
+        <td class="r">{{ c.sheets_cut or '' }}</td>
+        <td class="r big">{{ c.sheets_open if c.sheets_open is not none and c.status in ('filed', 'queued') else '' }}</td>
+        <td class="nowrap">{{ c.due_date.strftime('%m/%d/%y') if c.due_date else '' }}</td>
+        <td>{{ c.who_on or '' }}</td>
+        <td class="nowrap">
+          {% if c.status == 'filed' %}<a href="{{ url_for('cutorders.cut_order_detail', cut_order_id=c.id) }}">Release</a>
+          {% elif c.status in ('queued', 'complete') %}<a href="{{ url_for('cutorders.cut_order_print', cut_order_id=c.id) }}">Print</a>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="note">{% if q %}Nothing matches "{{ q }}" here.{% else %}No cut orders here yet. <a href="{{ url_for('cutorders.cut_order_form') }}">Make the first one</a>.{% endif %}</p>
+  {% endif %}
+  <p class="foot">Filed = entered and waiting. Released = printed and on the floor, ready to scan. Sheets are deducted from stock as team members scan off.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "scan/base.html" %}
+{% block body %}
+<h1>Who is this?</h1>
+<p class="lead">Tap your name. This phone will remember you.</p>
+{% if members %}
+<div class="names">
+  {% for m in members %}<a class="pbtn name" href="{{ url_for('scan.pin', member_id=m.id, next=next) }}">{{ m.name }}</a>{% endfor %}
+</div>
+{% else %}
+<section class="result warn"><h1>No team members yet</h1><p>Ask the supervisor to add you in TPMS.</p></section>
+{% endif %}
+{% endblock %}

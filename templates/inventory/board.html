@@ -13,6 +13,10 @@
   <div class="scroll"><table class="grid">
     <thead><tr>
       <th>Plywood</th><th>Supplier</th><th class="r">On hand, sheets</th><th class="r">Packs</th>
+      <th class="r" title="Sheets still to cut on released cut orders">Released</th>
+      <th class="r" title="On hand less released">Available</th>
+      <th class="r" title="Sheets on filed cut orders, not yet released">Filed</th>
+      <th class="r" title="Available less filed">After filed</th>
       <th class="r">Reorder at</th><th class="r">Cost / sheet</th><th class="r">Value on hand</th>
       <th>Last receipt</th><th>Last count</th><th></th>
     </tr></thead>
@@ -24,6 +28,10 @@
         <td class="r big">{{ r.on_hand|num }}
           {% if r.flag == 'negative' %}<span class="tag bad">below zero</span>{% elif r.flag == 'reorder' %}<span class="tag warn">reorder</span>{% endif %}</td>
         <td class="r">{% if r.packs is not none %}{{ r.packs|num(1) }}{% endif %}</td>
+        <td class="r">{{ r.committed or '' }}</td>
+        <td class="r {{ 'neg' if r.available < 0 }}">{{ r.available|num }}{% if r.flag == 'short' %} <span class="tag bad">short</span>{% endif %}</td>
+        <td class="r">{{ r.filed or '' }}</td>
+        <td class="r {{ 'neg' if r.after_filed < 0 }}">{{ r.after_filed|num }}</td>
         <td class="r">{{ r.reorder_point if r.reorder_point is not none else '' }}</td>
         <td class="r">{% if r.cost_per_sheet is not none %}${{ r.cost_per_sheet|num(2) }}{% endif %}</td>
         <td class="r">{% if r.value is not none %}${{ r.value|num(0) }}{% endif %}</td>
@@ -34,11 +42,11 @@
     {% endfor %}
     </tbody>
     <tfoot><tr>
-      <td colspan="2">Total</td><td class="r big">{{ total_sheets|num }}</td><td colspan="3"></td>
+      <td colspan="2">Total</td><td class="r big">{{ total_sheets|num }}</td><td colspan="7"></td>
       <td class="r">{% if total_value %}${{ total_value|num(0) }}{% endif %}</td><td colspan="3"></td>
     </tr></tfoot>
   </table></div>
-  <p class="foot">On hand is the sum of every receipt, cut, count and adjustment in the <a href="{{ url_for('inventory.ledger') }}">ledger</a>. Demand from cut orders will appear here when cut orders are built.</p>
+  <p class="foot">On hand is the sum of every receipt, cut, count and adjustment in the <a href="{{ url_for('inventory.ledger') }}">ledger</a>. Released is what is still to cut on cut orders on the floor; Filed is what is waiting behind them. A red Available means the released work needs more of that plywood than is in the building.</p>
   {% else %}
   <p class="note">No plywood is set up yet. Start in <a href="{{ url_for('items.item_list') }}">Plywood setup</a>.</p>
   {% endif %}

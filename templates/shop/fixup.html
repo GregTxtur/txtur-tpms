@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Fix-up · TPMS{% endblock %}
+{% block body %}
+<section class="wide narrowish">
+  <p class="crumb"><a href="{{ url_for('shop.setup') }}">Setup</a> ›</p>
+  <h1>Fix-up</h1>
+  <p class="lede">Scans that were never scanned off. TPMS closed each one back to the end of the day so nobody's clock ran all night. Enter when the person really stopped and, for a cut order, how many sheets they cut. Plywood is only deducted once you save.</p>
+  {% if rows %}
+  <div class="scroll"><table class="grid">
+    <thead><tr><th>Team member</th><th>On</th><th>Router</th><th>Scanned on</th><th>Stopped at</th><th>Sheets cut</th><th></th></tr></thead>
+    <tbody>
+    {% for s in rows %}
+      <tr>
+        <form method="post" id="fix{{ s.id }}"><input type="hidden" name="id" value="{{ s.id }}"></form>
+        <td><b>{{ s.member_name }}</b></td>
+        <td>{% if s.co %}<a href="{{ url_for('cutorders.cut_order_detail', cut_order_id=s.co.id) }}">{{ s.co.number }}</a> {{ s.co.description }}{% else %}{{ s.activity_name }}{% endif %}</td>
+        <td>{{ s.machine_code or '' }}</td>
+        <td class="nowrap">{{ s.started_at|localtime }}</td>
+        <td><input form="fix{{ s.id }}" type="datetime-local" name="ended_at" value="{{ s.ended_local }}" required class="cell"></td>
+        <td>{% if s.co %}<input form="fix{{ s.id }}" name="sheets" value="{{ s.taps or '' }}" inputmode="numeric" required class="cell short" placeholder="{{ s.co.sheets_open if s.co.sheets_open is not none else '' }} open">{% if s.taps %}<small>{{ s.taps }} tapped</small>{% endif %}{% else %}<span class="mute">—</span>{% endif %}</td>
+        <td><button form="fix{{ s.id }}" type="submit">Save</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="note">Nothing to fix. Every scan was scanned off.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ co.number if co else 'New cut order' }} · TPMS{% endblock %}
+{% macro val(name) %}{{ form[name] if form.get(name) is not none else '' }}{% endmacro %}
+{% block body %}
+<section class="sheet">
+  <p class="crumb"><a href="{{ url_for('cutorders.cut_order_list') }}">Cut orders</a> ›</p>
+  <h1>{{ ('Edit ' ~ co.number) if co else 'New cut order' }}</h1>
+  {% for e in errors %}<p class="flash bad">{{ e }}</p>{% endfor %}
+  <form method="post" class="form" id="coform">
+    <div class="row3">
+      <label>Program number
+        <input name="program_number" id="program_number" value="{{ val('program_number') }}" placeholder="P4055" autocomplete="off" {{ 'autofocus' if not co }}>
+      </label>
+      <label>Quantity, units
+        <input name="qty_units" id="qty_units" inputmode="decimal" value="{{ form.qty_units|qty if form.get('qty_units') is not none else '' }}">
+      </label>
+      <label>Router
+        <select name="machine_id">
+          <option value="">Decide at release</option>
+          {% for m in machines %}<option value="{{ m.id }}" {{ 'selected' if form.get('machine_id') == m.id }}>{{ m.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    {% if choices %}
+    <fieldset class="choice"><legend>Which program?</legend>
+      {% for p in choices %}
+      <label><input type="radio" name="program_id" value="{{ p.id }}" {{ 'checked' if form.get('program_id') == p.id }}> <b>{{ p.number }}</b> {{ p.name }} {{ p.description }} <span class="opt">{{ p.sheet_size }} {{ p.thickness }} {{ p.material_text }}</span></label>
+      {% endfor %}
+    </fieldset>
+    {% elif form.get('program_id') %}<input type="hidden" name="program_id" value="{{ form.program_id }}">{% endif %}
+    <p class="hint" id="program_info" aria-live="polite"></p>
+    <div class="row3">
+      <label>Shop order <input name="shop_order" value="{{ val('shop_order') }}"></label>
+      <label>Job number <input name="job_number" value="{{ val('job_number') }}"></label>
+      <label>Due <span class="opt">optional</span> <input type="date" name="due_date" value="{{ val('due_date') }}"></label>
+    </div>
+    <label>Part <span class="opt">filled in from the program if left blank</span>
+      <input name="description" id="description" value="{{ val('description') }}">
+    </label>
+    <div class="row3">
+      <label class="span2">Plywood
+        <select name="item_id" id="item_id">
+          <option value="">From the program</option>
+          {% for i in items %}<option value="{{ i.id }}" {{ 'selected' if form.get('item_id') == i.id }}>{{ item_label(i) }} — {{ i.on_hand|num }} on hand</option>{% endfor %}
+        </select>
+        <small>Asked once per program. After that TPMS remembers which plywood the program cuts from.</small>
+      </label>
+      <label>Sheets required
+        <input name="sheets_required" id="sheets_required" inputmode="numeric" value="{{ val('sheets_required') }}" placeholder="worked out for you">
+      </label>
+    </div>
+    <label>Notes <span class="opt">optional, prints on the cover sheet</span>
+      <input name="notes" value="{{ val('notes') }}">
+    </label>
+    <p class="buttons">
+      {% if not co or co.status == 'filed' %}
+      <button type="submit" name="action" value="release">Save, release and print</button>
+      <button type="submit" name="action" value="save" class="quiet">Save as filed</button>
+      {% else %}
+      <button type="submit" name="action" value="save">Save</button>
+      {% endif %}
+      <a class="btn quiet" href="{{ url_for('cutorders.cut_order_detail', cut_order_id=co.id) if co else url_for('cutorders.cut_order_list') }}">Cancel</a>
+    </p>
+  </form>
+</section>
+<script>
+// Shows what the typed program is and works out the sheets, so the supervisor sees it before saving.
+(function () {
+  var num = document.getElementById('program_number'), qty = document.getElementById('qty_units');
+  var info = document.getElementById('program_info'), sheets = document.getElementById('sheets_required');
+  var item = document.getElementById('item_id'), current = null, timer = null;
+  function calc() {
+    if (!current || !qty.value || sheets.dataset.touched) return;
+    var q = parseFloat(qty.value.replace(/,/g, ''));
+    if (!(q > 0)) return;
+    var n = current.units_per_sheet ? Math.ceil(q / current.units_per_sheet - 1e-9)
+          : current.sheets_per_unit ? Math.ceil(q * current.sheets_per_unit - 1e-9) : null;
+    if (n) sheets.value = Math.max(1, n);
+  }
+  function show(list, typed) {
+    current = null;
+    if (!num.value.trim()) { info.textContent = ''; return; }
+    if (!list.length) { info.textContent = 'No program has that number.'; info.className = 'hint bad'; return; }
+    if (list.length > 1) { info.textContent = list.length + ' programs share that number. Save to choose between them.'; info.className = 'hint'; return; }
+    var p = current = list[0], bits = [p.name + (p.description ? ' ' + p.description : '')];
+    bits.push([p.size, p.thickness, p.material].filter(Boolean).join(' '));
+    bits.push(p.units_per_sheet ? p.units_per_sheet + ' units per sheet' : p.sheets_per_unit ? p.sheets_per_unit + ' sheets per unit' : 'no yield on file: enter the sheets yourself');
+    bits.push(p.times ? 'router time ' + p.times : 'no router time on file: this order will earn no minutes');
+    bits.push(p.item ? 'cuts from ' + p.item : 'plywood not chosen yet: pick it below');
+    info.textContent = bits.filter(Boolean).join(' · '); info.className = 'hint';
+    if (p.item_id && !item.value) item.value = p.item_id;
+    if (typed) calc();   // only follow the supervisor's typing; never rewrite a saved figure on page load
+  }
+  function look(typed) {
+    var v = num.value.trim();
+    if (!v) { show([], typed); return; }
+    fetch('{{ url_for("cutorders.api_program") }}?number=' + encodeURIComponent(v))
+      .then(function (r) { return r.json(); }).then(function (list) { show(list, typed); }).catch(function () {});
+  }
+  num.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { look(true); }, 250); });
+  qty.addEventListener('input', calc);
+  sheets.addEventListener('input', function () { sheets.dataset.touched = sheets.value ? '1' : ''; });
+  if (num.value) look(false);
+})();
+</script>
+{% endblock %}

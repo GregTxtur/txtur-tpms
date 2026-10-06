@@ -1,0 +1,10 @@
+{% macro standing(co) %}
+<dl class="standing">
+  <div><dt>Order</dt><dd>{% if co.sheets_required is not none %}<b>{{ co.sheets_required }}</b> sheet{{ '' if co.sheets_required == 1 else 's' }}{% else %}sheets not set{% endif %}{% if co.qty_units %} <span>{{ co.qty_units|qty }} units</span>{% endif %}</dd></div>
+  <div><dt>Cut</dt><dd><b>{{ co.sheets_cut }}</b> sheet{{ '' if co.sheets_cut == 1 else 's' }}{% if co.units_cut is not none %} <span>{{ co.units_cut|qty }} units</span>{% endif %}</dd></div>
+  {% if co.sheets_open is not none %}<div class="open"><dt>Open</dt><dd><b>{{ co.sheets_open }}</b> sheet{{ '' if co.sheets_open == 1 else 's' }}</dd></div>{% endif %}
+</dl>
+{% endmacro %}
+{% macro about(co) %}
+<p class="about"><b>{{ co.description or 'Cut order' }}</b>{% if co.program_number %} · {{ co.program_number }}{% endif %}{% if co.machine_name %} · {{ co.machine_name }}{% endif %}{% if co.plywood %}<br>{{ co.plywood }}{% endif %}{% if co.shop_order %}<br>SO {{ co.shop_order }}{% endif %}{% if co.job_number %} · Job {{ co.job_number }}{% endif %}</p>
+{% endmacro %}

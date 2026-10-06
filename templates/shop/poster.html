@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ machine.name }} scan poster</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='tpms.css') }}?v={{ app_version }}">
+</head>
+<body class="paper">
+<div class="printbar">
+  <a href="{{ url_for('shop.activities') }}">‹ Back to activities</a>
+  <button onclick="window.print()">Print</button>
+</div>
+<article class="poster">
+  <header>
+    <p class="kicker">Txtur plywood · scan poster</p>
+    <h1>{{ machine.name }}</h1>
+    <p>For work that is not on a cut order. Scan <b>ON</b> when you start and <b>OFF</b> when you finish.</p>
+  </header>
+  <div class="posterhead"><span>SCAN ON</span><span></span><span>SCAN OFF</span></div>
+  {% for a in acts %}
+  <div class="posterrow">
+    <div class="code on">{{ a.qr_on }}</div>
+    <div class="what">
+      <h2>{{ a.name }}</h2>
+      <p>{% if not a.earns %}Does not earn minutes — records the reason{% elif a.earned_minutes %}Earns {{ a.earned_minutes }} minutes{% else %}Standard not set yet{% endif %}</p>
+    </div>
+    <div class="code off">{{ a.qr_off }}</div>
+  </div>
+  {% endfor %}
+  <footer>
+    <div class="code">{{ qr_me }}<strong>MY WORK</strong><span>what you are on, and your sheet counter</span></div>
+    <div class="code">{{ qr_all }}<strong>SCAN OFF EVERYTHING</strong><span>lunch and end of shift</span></div>
+  </footer>
+</article>
+</body>
+</html>

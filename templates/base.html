@@ -5,18 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}TPMS{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='tpms.css') }}?v={{ app_version }}">
+{% block head %}{% endblock %}
 </head>
 <body>
 <script src="https://txturtools.com/tools-assets/topbar.js" data-app="Plywood (TPMS)" data-user="{{ current_user().email if current_user() else '' }}"></script>
 {% if request.endpoint != 'auth.login' %}
 <nav class="nav">
   {% set here = request.endpoint or '' %}
+  <a href="{{ url_for('cutorders.cut_order_list') }}" class="{{ 'on' if here.startswith('cutorders.') }}">Cut orders</a>
+  <a href="{{ url_for('shop.cutting') }}" class="{{ 'on' if here == 'shop.cutting' }}">Cutting now</a>
+  <a href="{{ url_for('shop.minutes') }}" class="{{ 'on' if here == 'shop.minutes' }}">Daily minutes</a>
+  <span class="gap"></span>
   <a href="{{ url_for('inventory.board') }}" class="{{ 'on' if here == 'inventory.board' }}">Material board</a>
   <a href="{{ url_for('inventory.receive') }}" class="{{ 'on' if here == 'inventory.receive' }}">Receive</a>
   <a href="{{ url_for('inventory.adjust') }}" class="{{ 'on' if here == 'inventory.adjust' }}">Adjust</a>
   <a href="{{ url_for('inventory.ledger') }}" class="{{ 'on' if here == 'inventory.ledger' }}">Ledger</a>
   <a href="{{ url_for('programs.program_list') }}" class="{{ 'on' if here.startswith('programs.program') }}">Program list</a>
-  <a href="{{ url_for('items.item_list') }}" class="{{ 'on' if here.startswith('items.') }}">Plywood setup</a>
+  <span class="gap"></span>
+  <a href="{{ url_for('shop.setup') }}" class="{{ 'on' if here in ('shop.setup', 'shop.team', 'shop.activities', 'shop.fixup', 'programs.import_workbook') or here.startswith('items.') }}">Setup</a>
 </nav>
 {% endif %}
 <main>

@@ -5,13 +5,15 @@ queue/filed sheets (which become the first rows of the item master, with the
 on-hand row as opening balances). Programs already in TPMS are left alone
 unless overwrite is asked for, so the list can be re-loaded safely.
 """
+import collections
 import datetime
+import math
 import re
 
 import openpyxl
 
 from util import (is_blank, make_code, norm_machine, norm_size, norm_status,
-                  norm_thickness, norm_ws, parse_number, parse_time_cell,
+                  norm_thickness, norm_ws, parse_number, parse_time_cell, parse_units_per_sheet,
                   title_type)
 
 _HEADER_WORDS = {"PRO.", "#", "PROGRAM", "NUMBER"}
@@ -73,7 +75,7 @@ def read_programs(wb):
         programs.append({
             "number": number, "name": name, "description": _clean(r[20]),
             "machine_code": norm_machine(r[3]),
-            "units_per_sheet": parse_number(r[4]), "units_text": _clean(r[4]),
+            "units_per_sheet": parse_units_per_sheet(r[4]), "units_text": _clean(r[4]),
             "sheets_per_unit": sheets_per_unit,
             "parts_on_sheet": _int(r[10]), "parts_in_unit": _int(r[11]),
             "multi_sheet": multi if multi.startswith("X") or "SHEET" in multi else "",
@@ -186,3 +188,127 @@ def load_items(conn, items, entered_by=""):
 
 def open_workbook(file_obj):
     return openpyxl.load_workbook(file_obj, data_only=True)
+
+
+# ---- open jobs: the queue and filed sheets become cut orders
+
+def _job_rows(ws, max_blank=30):
+    """Yield (row number, cells, on_hold) for the job lines of a sheet.
+
+    Totals lines are skipped wherever their label sits. On the queue sheet a second block headed
+    "JOB ON HOLD" follows the totals; its lines are yielded with on_hold=True. Reading stops at a long
+    blank stretch, below which the old filed sheet keeps a legacy list.
+    """
+    blank, on_hold, last_so = 0, False, ""
+    for idx, raw in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
+        r = list(raw) + [None] * 24
+        labels = " ".join(norm_ws(v).upper() for v in r[:20] if isinstance(v, str))
+        if "ON HOLD" in norm_ws(r[1]).upper() and norm_ws(r[0]).upper() in ("S.O.", "#", ""):
+            on_hold, blank = True, 0
+            continue
+        first = norm_ws(r[0])
+        # A totals line has its label ("TOTAL USED:" ...) in some cell and no shop order of its own.
+        if not first and re.search(r"(?:^| )(?:TOTAL (?:USED|LEFT|NEEDED)|END TOTAL|DELIVERED):", labels):
+            blank, last_so = 0, ""
+            continue
+        if first.upper() in ("S.O.", "#") or not norm_ws(r[1]):
+            blank += 1
+            if blank >= max_blank:
+                return
+            continue
+        if not first:
+            # A part line with the shop order left blank belongs to the shop order on the line above.
+            if not last_so:
+                blank += 1
+                continue
+            r[0] = last_so
+        blank, last_so = 0, norm_ws(r[0])
+        yield idx, r, on_hold
+
+
+def read_jobs(wb):
+    """Open jobs from the workbook, each tagged with the plywood column its sheet count sits in.
+
+    The workbook does not record a program number, so these come in with no program: they can be
+    released, scanned and deducted from stock, but earn no minutes until a program is added.
+    Queue-sheet lines become released cut orders; filed-sheet and on-hold lines become filed ones.
+    """
+    jobs = []
+    for needles, sheet_status, machine_col in ((("CUTTING", "QUEUE"), "queued", 5), (("FILED",), "filed", None)):
+        ws = _sheet(wb, *needles)
+        if ws is None:
+            continue
+        item_cols = {col: parse_item_header(ws.cell(1, col).value) for col in range(1, ws.max_column + 1)}
+        item_cols = {col: parsed for col, parsed in item_cols.items() if parsed}
+        for idx, r, on_hold in _job_rows(ws):
+            tag = norm_ws(r[6]).upper() if sheet_status == "queued" else ""
+            if re.search(r"(?<![A-Z])COMPLETE", tag):
+                continue
+            item, sheets = None, None
+            for col, parsed in item_cols.items():
+                value = r[col - 1]
+                if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+                    item, sheets = parsed, int(math.ceil(value))
+                    break
+            if sheets is None:
+                n = parse_number(r[3])
+                sheets = int(math.ceil(n)) if n else None
+            due = r[4].date() if isinstance(r[4], datetime.datetime) and 2020 <= r[4].year <= 2100 else None
+            # A line can only go to the floor with a plywood and a sheet count behind it; anything less is
+            # filed for the supervisor to finish. (Lines like spacer blocks nested on another part's sheets
+            # have neither in the workbook.)
+            ready = bool(item and sheets)
+            status = sheet_status if ready and not on_hold else "filed"
+            if on_hold:
+                notes = "On hold in the workbook: no plywood"
+            elif sheet_status == "filed":
+                notes = _clean(r[5])
+            else:
+                notes = "" if tag in ("", "OFS", "TXTUR", "TXTXUR") else tag.title()
+                if not ready:
+                    notes = norm_ws("On the queue sheet with no sheet count under a plywood column. " + notes)
+            jobs.append({
+                "status": status, "shop_order": norm_ws(r[0]), "description": norm_ws(r[1]),
+                "qty_units": parse_number(r[2]), "sheets_required": sheets, "due_date": due,
+                "machine_code": norm_machine(r[machine_col]) if machine_col is not None else "",
+                "item": item, "notes": notes,
+            })
+    return jobs
+
+
+def load_jobs(conn, jobs, entered_by=""):
+    """Create cut orders for workbook jobs not already loaded (matched on shop order + part)."""
+    import floor
+    machines = {r["code"]: r["id"] for r in conn.execute("select id, code from machine")}
+    items = {(r["sheet_size"], r["thickness"], r["name"].lower()): r["id"] for r in conn.execute(
+        "select i.id, i.sheet_size, i.thickness, t.name from item i join plywood_type t on t.id = i.type_id "
+        "where i.grade = ''")}
+    # Re-running must not double up, but the workbook does hold genuine repeats (same shop order and
+    # part on two lines), so count them: the Nth line of a pair is skipped only if N are already loaded.
+    existing = collections.Counter((r["shop_order"], r["description"]) for r in conn.execute(
+        "select shop_order, description from cut_order where source = 'workbook'"))
+    seen = collections.Counter()
+    added_by = collections.Counter()
+    added = skipped = no_item = 0
+    for j in jobs:
+        key = (j["shop_order"], j["description"])
+        seen[key] += 1
+        if seen[key] <= existing[key]:
+            skipped += 1
+            continue
+        item_id = items.get((j["item"][0], j["item"][1], j["item"][2].lower())) if j["item"] else None
+        if not item_id:
+            no_item += 1
+        machine_id = machines.get(j["machine_code"])
+        conn.execute(
+            "insert into cut_order (token, status, shop_order, description, qty_units, sheets_required, due_date, "
+            "machine_id, item_id, notes, source, created_by, released_at, released_by) "
+            "values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'workbook', %s, %s, %s)",
+            (floor.new_token(), j["status"], j["shop_order"], j["description"], j["qty_units"],
+             j["sheets_required"], j["due_date"], machine_id, item_id, j["notes"], entered_by,
+             datetime.datetime.now(datetime.timezone.utc) if j["status"] == "queued" else None,
+             entered_by if j["status"] == "queued" else ""))
+        added += 1
+        added_by[j["status"]] += 1
+    return {"added": added, "skipped": skipped, "found": len(jobs), "no_item": no_item,
+            "queued": added_by["queued"], "filed": added_by["filed"]}

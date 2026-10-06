@@ -71,6 +71,43 @@ def parse_number(value):
     return n if n > 0 else None
 
 
+_UNIT_NOUN = r"(?:UNITS?|UINIT|UNTS|UNITTS|PANELS?|SEATS?|RAILS?|ARMS?|BACKS?|TOPS?|END PANELS?|BK\.? ?(?:BK )?POSTS?|BACK POSTS?)"
+
+
+def parse_units_per_sheet(value):
+    """Units that come off one sheet, from the legacy list's free-text column. None unless it is unambiguous.
+
+    '6 UNITS' -> 6, '1/2 UNIT' -> 0.5, '1 1/3 UNIT' -> 1.333, '3/4 OF A UNIT' -> 0.75,
+    '2 SHEETS 1 UNIT' and '2 SHEETS = 1.5 UNITS' -> units / sheets. Anything offering alternatives
+    ('6 OR 9 UNITS', '155=8,149=6UNITS', '90% OF A UNIT & 4 UNITS') is left for a person to settle.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value) if value > 0 else None
+    t = norm_ws(value).upper().rstrip(".!")
+    if not t:
+        return None
+    num = r"(\d+(?:\.\d+)?)"
+    m = re.fullmatch(num + r"(?: ?" + _UNIT_NOUN + r")?", t)
+    if m:
+        n = float(m.group(1))
+    else:
+        m = re.fullmatch(r"(?:(\d+) )?(\d+)/(\d+)(?: OF)?(?: AN?)? ?" + _UNIT_NOUN + r"?", t)
+        if m and int(m.group(3)):
+            n = int(m.group(1) or 0) + int(m.group(2)) / int(m.group(3))
+        else:
+            m = re.fullmatch(num + r"(?: OF)? AN? " + _UNIT_NOUN, t)
+            if m:
+                n = float(m.group(1))
+            else:
+                m = re.fullmatch(num + r" SHEETS? ?=? ?" + num + r" ?" + _UNIT_NOUN, t)
+                if not m or not float(m.group(1)):
+                    return None
+                n = float(m.group(2)) / float(m.group(1))
+    return round(n, 4) if n > 0 else None
+
+
 def parse_time_cell(value):
     """Run time from the legacy program list, as seconds per sheet.
 

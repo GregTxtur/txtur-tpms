@@ -1,0 +1,20 @@
+{% extends "scan/base.html" %}
+{% block body %}
+<h1>Scan off everything</h1>
+{% if error %}<section class="result warn"><p>{{ error }}</p></section>{% endif %}
+<form method="post" class="stack">
+  {% if confirm_value %}<input type="hidden" name="confirm" value="{{ confirm_value }}">{% endif %}
+  {% for s in sessions %}
+    {% if s.cut_order %}
+    <label><b>{{ s.cut_order.number }}</b> {{ s.cut_order.description }}
+      <input name="sheets_{{ s.id }}" value="{{ values[s.id] }}" inputmode="numeric" pattern="\d*" autocomplete="off" required class="big" placeholder="sheets cut this time">
+      <small>{% if s.taps %}Counter says {{ s.taps }}. {% endif %}{% if s.cut_order.sheets_open is not none %}{{ s.cut_order.sheets_open }} were open.{% endif %}</small>
+    </label>
+    {% else %}
+    <p class="about"><b>{{ s.activity_name }}</b>{% if s.machine_name %} · {{ s.machine_name }}{% endif %} — will be ended.</p>
+    {% endif %}
+  {% endfor %}
+  <button type="submit" class="pbtn">{{ 'Yes, those are right — scan off everything' if confirm_value else 'Scan off everything' }}</button>
+  <a class="pbtn quiet" href="{{ url_for('scan.me') }}">Stay on</a>
+</form>
+{% endblock %}

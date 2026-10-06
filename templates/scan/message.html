@@ -1,0 +1,13 @@
+{% extends "scan/base.html" %}
+{% from "scan/_standing.html" import standing, about %}
+{% block body %}
+<section class="result {{ tone }}">
+  <h1>{{ title }}</h1>
+  {% for line in lines %}<p>{{ line }}</p>{% endfor %}
+</section>
+{% if co %}{{ about(co) }}{{ standing(co) }}{% endif %}
+<p class="stack">
+  {% for label, href in actions %}<a class="pbtn {{ 'quiet' if not loop.first }}" href="{{ href }}">{{ label }}</a>{% endfor %}
+  {% if member and not actions %}<a class="pbtn" href="{{ url_for('scan.me') }}">My work</a>{% endif %}
+</p>
+{% endblock %}

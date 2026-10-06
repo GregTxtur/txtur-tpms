@@ -18,6 +18,10 @@
       {% if result.report.unreadable_times %}<li>{{ result.report.unreadable_times }} router times were words rather than times ("see notes" and the like) and were left blank.</li>{% endif %}
       {% if result.report.odd_numbers %}<li>{{ result.report.odd_numbers|length }} program numbers do not look like P0000 and are flagged "check": {{ result.report.odd_numbers|join(', ') }}.</li>{% endif %}
     {% endif %}
+    {% if result.get('jobs') %}
+      <li><b>{{ result.jobs.added }}</b> open job{{ '' if result.jobs.added == 1 else 's' }} added as cut orders ({{ result.jobs.queued }} released, {{ result.jobs.filed }} filed){% if result.jobs.skipped %}; {{ result.jobs.skipped }} already here and left alone{% endif %}. <a href="{{ url_for('cutorders.cut_order_list') }}">Open cut orders</a>.</li>
+      <li>The workbook has no program numbers, so these cut orders have no program yet. Add the program on each one before it is cut, or it earns no minutes.{% if result.jobs.no_item %} {{ result.jobs.no_item }} had no sheet count under a plywood column; those are filed, with a note, for you to finish or cancel.{% endif %}</li>
+    {% endif %}
     </ul>
   </div>
   {% endif %}
@@ -28,10 +32,11 @@
     <fieldset class="choice"><legend>What to load</legend>
       <label><input type="checkbox" name="programs" value="1" checked> The CNC program list <span class="opt">{{ counts.programs|num }} programs in TPMS now</span></label>
       <label><input type="checkbox" name="items" value="1" {{ 'checked' if counts['items'] == 0 }}> Starting plywood items and their on-hand counts, from the queue and filed sheets <span class="opt">{{ counts['items'] }} items in TPMS now</span></label>
+      <label><input type="checkbox" name="jobs" value="1"> Open jobs from the queue and filed sheets, as cut orders <span class="opt">{{ counts.jobs }} loaded so far; load the plywood items first</span></label>
       <label><input type="checkbox" name="overwrite" value="1"> Also overwrite programs already in TPMS with what the workbook says <span class="opt">this undoes edits made here</span></label>
     </fieldset>
     <p><button type="submit">Load</button></p>
   </form>
-  <p class="foot">Router times in the workbook are read as minutes:seconds per sheet. Jobs on the queue and filed sheets are not loaded yet; they come in with cut orders.</p>
+  <p class="foot">Router times in the workbook are read as minutes:seconds per sheet. Rows marked COMPLETE on the queue sheet are skipped.</p>
 </section>
 {% endblock %}

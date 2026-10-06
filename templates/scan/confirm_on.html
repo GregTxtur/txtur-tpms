@@ -1,0 +1,14 @@
+{% extends "scan/base.html" %}
+{% from "scan/_standing.html" import standing, about %}
+{% block body %}
+<section class="result warn">
+  <h1>{{ title }}</h1>
+  <p>{{ line }}</p>
+</section>
+{{ about(co) }}{{ standing(co) }}
+<form method="post" class="stack">
+  <input type="hidden" name="confirm" value="1">
+  <button type="submit" class="pbtn">Scan on anyway</button>
+  <a class="pbtn quiet" href="{{ url_for('scan.me') }}">Do not scan on</a>
+</form>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "scan/base.html" %}
+{% block body %}
+<h1>{{ candidate.name }}</h1>
+{% if error %}<section class="result {{ 'bad' if blocked else 'warn' }}"><p>{{ error }}</p></section>{% endif %}
+{% if not blocked %}
+<form method="post" class="stack">
+  <input type="hidden" name="next" value="{{ next }}">
+  <label>Your PIN
+    <input name="pin" type="password" inputmode="numeric" pattern="\d*" autocomplete="off" autofocus required class="pin">
+  </label>
+  <button type="submit" class="pbtn">That's me</button>
+</form>
+{% endif %}
+<p class="stack"><a class="pbtn quiet" href="{{ url_for('scan.who', next=next) }}">Not {{ candidate.name }}</a></p>
+{% endblock %}

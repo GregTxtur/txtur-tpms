@@ -40,7 +40,8 @@ def _whole_number(text):
 def board():
     rows = db.query("""
         select i.*, t.name as type_name, s.name as supplier_name,
-               coalesce(x.on_hand, 0) as on_hand, x.last_receipt, x.last_count
+               coalesce(x.on_hand, 0) as on_hand, x.last_receipt, x.last_count,
+               coalesce(q.committed, 0)::int as committed, coalesce(q.filed, 0)::int as filed
           from item i
           join plywood_type t on t.id = i.type_id
           left join supplier s on s.id = i.supplier_id
@@ -48,6 +49,14 @@ def board():
                             max(created_at) filter (where txn_type = 'receipt') as last_receipt,
                             max(created_at) filter (where txn_type in ('adjust', 'opening')) as last_count
                        from inventory_txn group by item_id) x on x.item_id = i.id
+          left join (select c.item_id,
+                            sum(greatest(c.sheets_required - coalesce(d.cut, 0), 0)) filter (where c.status = 'queued') as committed,
+                            sum(greatest(c.sheets_required - coalesce(d.cut, 0), 0)) filter (where c.status = 'filed') as filed
+                       from cut_order c
+                       left join (select cut_order_id, sum(sheets) as cut from scan_session group by cut_order_id) d
+                              on d.cut_order_id = c.id
+                      where c.status in ('queued', 'filed') and c.item_id is not null
+                      group by c.item_id) q on q.item_id = i.id
          where i.active or coalesce(x.on_hand, 0) <> 0
     """)
     rows = sorted(rows, key=item_sort_key)
@@ -57,8 +66,12 @@ def board():
         r["value"] = (r["on_hand"] * r["cost_per_sheet"]) if r["cost_per_sheet"] is not None else None
         if r["value"] and r["value"] > 0:
             total_value += r["value"]
+        r["available"] = r["on_hand"] - r["committed"]
+        r["after_filed"] = r["available"] - r["filed"]
         if r["on_hand"] < 0:
             r["flag"] = "negative"
+        elif r["available"] < 0:
+            r["flag"] = "short"
         elif r["reorder_point"] is not None and r["on_hand"] <= r["reorder_point"]:
             r["flag"] = "reorder"
         else:
@@ -195,7 +208,7 @@ def ledger_xlsx():
                "Shop order", "Team member", "Note", "Entered by"])
     for r in rows:
         local = r["created_at"].astimezone(PLANT_TZ)
-        ws.append([local.date(), local.strftime("%I:%M %p"), item_label(r), r["code"], TXN_LABELS[r["txn_type"]],
+        ws.append([local.date(), local.strftime("%-I:%M %p"), item_label(r), r["code"], TXN_LABELS[r["txn_type"]],
                    r["qty_sheets"], r["reason"], r["reference"], r["job_number"], r["shop_order"],
                    r["team_member"], r["note"], r["entered_by"]])
     for col, width in zip("ABCDEFGHIJKLM", (12, 10, 30, 20, 12, 9, 20, 18, 12, 12, 16, 50, 14)):

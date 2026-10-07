@@ -122,7 +122,7 @@ button,input,select,textarea{font-family:var(--font)}
 .tabs .find button{padding:7px 16px}
 .tag.ok{background:var(--ok-bg);color:var(--ok);border:1px solid #a9d3b0}
 .tag.large{font-size:15px;padding:3px 12px;vertical-align:middle}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:0 0 16px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:0 0 16px}
 .facts div{background:#fff;padding:10px 14px}
 .facts span{display:block;color:var(--mute);font-size:13px}
 .tiles.four{grid-template-columns:repeat(4,1fr)}
@@ -264,3 +264,28 @@ body.phone small{font-weight:400}
 .typed summary{padding:8px 0;cursor:pointer}
 .typed form{margin-top:10px;color:var(--ink)}
 .grid tr.short td{background:var(--bad-bg)}
+
+/* ---- program page: create cutting, nest picture ---- */
+.sheet.roomy{max-width:960px}
+.btn.create{background:var(--ok);font-size:19px;padding:14px 30px;box-shadow:0 2px 0 #1f5a2b}
+.btn.create:hover{background:#266a33}
+button.small{padding:5px 12px;font-size:14px}
+.nestbox{display:grid;grid-template-columns:minmax(0,3fr) minmax(220px,2fr);gap:20px;margin:0 0 8px;padding:16px;background:#fff;border:1px solid var(--line);border-radius:4px}
+.nestpic{display:flex;align-items:center;justify-content:center;min-height:180px;background:#f6f1e4;border:1px dashed var(--ply-dark);border-radius:4px}
+.nestpic img{display:block;max-width:100%;max-height:440px}
+.nestpic .empty{color:var(--mute);margin:0}
+.nestside h2{margin:0 0 6px;font-size:19px}
+.nestside p{margin:0 0 12px}
+.nestside form{margin:0 0 8px}
+.nestform input[type=file]{margin:0 0 8px;font-size:14px;border-width:1px}
+.nestthumb{display:flex;align-items:center;gap:14px;margin:0 0 14px}
+.nestthumb img{display:block;max-height:130px;max-width:260px;border:1px solid var(--line);background:#fff}
+.nestthumb span{color:var(--mute)}
+.nestpage{width:7.6in;height:10.1in;margin:18px auto;padding:0.3in;background:#fff;display:flex;flex-direction:column;box-shadow:0 2px 12px rgba(0,0,0,.4);break-before:page}
+.nestpage header{display:flex;gap:18px;align-items:baseline;border-bottom:3px solid #000;padding-bottom:6px;margin-bottom:10px;font-size:15px}
+.nestpage header b{font-size:26px}
+.nestpage img{flex:1;min-height:0;width:100%;object-fit:contain}
+@media (max-width:760px){.nestbox{grid-template-columns:1fr}}
+@media print{.nestpage{margin:0;padding:0;box-shadow:none;width:auto;height:9.9in}}
+
+@media (max-width:640px){.facts{grid-template-columns:repeat(2,1fr)}}

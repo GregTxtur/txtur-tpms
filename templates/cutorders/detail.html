@@ -32,6 +32,11 @@
   {% if not co.program_id %}<p class="flash">This cut order has no program, so cutting on it earns no minutes. Add the program with Edit.</p>
   {% elif not std %}<p class="flash">Program {{ co.program_number }} has no router time on file, so cutting on it earns no minutes until one is entered.</p>{% endif %}
   {% if co.notes %}<p class="note">{{ co.notes }}</p>{% endif %}
+  {% if co.has_nest %}
+  <p class="nestthumb"><a href="{{ url_for('programs.nest_file', program_id=co.program_id) }}" target="_blank" rel="noopener"><img src="{{ url_for('programs.nest_picture', program_id=co.program_id) }}" alt="Nest for program {{ co.program_number }}"></a><span>Nest for {{ co.program_number }}. It prints as page 2 of the cover sheet.</span></p>
+  {% elif co.program_id %}
+  <p class="mute">No nest picture is on file for {{ co.program_number }}. <a href="{{ url_for('programs.program_form', program_id=co.program_id) }}#nest">Upload one</a> and it will print with the cover sheet.</p>
+  {% endif %}
 
   <div class="actions row">
     {% if co.status == 'filed' %}

@@ -3,10 +3,13 @@ import io
 import re
 
 import psycopg
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import (Blueprint, Response, flash, redirect, render_template,
+                   request, url_for)
 
 import db
+import floor
 import importer
+import nest
 from guard import require_login, user_label
 from util import norm_machine, norm_size, norm_thickness, norm_ws, parse_mmss
 from views.items import all_items
@@ -16,6 +19,7 @@ bp.before_request(require_login)
 
 PAGE = 100
 STATUSES = ["approved", "sample", "retired", "unknown"]
+CO_LABELS = {"filed": "Filed", "queued": "Released", "complete": "Complete", "cancelled": "Cancelled"}
 
 
 def _machines():
@@ -43,6 +47,11 @@ def _filters(args):
         where.append("p.item_id is not null")
     elif args.get("item") == "unlinked":
         where.append("p.item_id is null")
+    has_nest = "exists (select 1 from program_nest n where n.program_id = p.id)"
+    if args.get("nest") == "missing":
+        where.append("not " + has_nest)
+    elif args.get("nest") == "has":
+        where.append(has_nest)
     if args.get("check") == "dupes":
         where.append("p.number in (select number from program group by number having count(*) > 1)")
     elif args.get("check") == "odd":
@@ -58,6 +67,7 @@ def program_list():
     rows = db.query(f"""
         select p.*, i.thickness as item_thickness, i.sheet_size as item_size, i.grade as item_grade,
                t.name as item_type,
+               exists (select 1 from program_nest n where n.program_id = p.id) as has_nest,
                (select count(*) from program d where d.number = p.number) > 1 as dupe
           from program p
           left join item i on i.id = p.item_id
@@ -166,8 +176,87 @@ def program_form(program_id=None):
             except psycopg.errors.DataError:
                 db.rollback()
                 errors.append("One of the values could not be saved. Check the date (YYYY-MM-DD) and the numbers.")
+    nest_info, cuttings, item = None, [], None
+    if program:
+        nest_info = db.one("select filename, content_type, size_bytes, width, height, pages, uploaded_by, uploaded_at "
+                           "from program_nest where program_id = %s", (program_id,))
+        cuttings = [floor.decorate(r) for r in db.query(
+            floor.CUT_ORDER_SQL + " where c.program_id = %s order by c.id desc limit 25", (program_id,))]
+        if program["item_id"]:
+            item = next((i for i in all_items() if i["id"] == program["item_id"]), None)
     return render_template("programs/form.html", program=program, form=form, errors=errors, machines=machines,
-                           time_text=time_text, items=all_items(), statuses=STATUSES)
+                           time_text=time_text, items=all_items(), statuses=STATUSES, nest=nest_info,
+                           cuttings=cuttings, item=item, labels=CO_LABELS)
+
+
+# ---- nest picture: one per program
+
+@bp.route("/programs/<int:program_id>/nest", methods=["POST"])
+def nest_upload(program_id):
+    program = db.one("select id, number from program where id = %s", (program_id,))
+    if not program:
+        return redirect(url_for("programs.program_list"))
+    back = redirect(url_for("programs.program_form", program_id=program_id) + "#nest")
+    upload = request.files.get("nest")
+    if not upload or not upload.filename:
+        flash("Choose the nest picture or PDF first.", "bad")
+        return back
+    data = upload.read()
+    try:
+        info = nest.read_upload(data)
+    except nest.NestError as exc:
+        flash(str(exc), "bad")
+        return back
+    filename = norm_ws(upload.filename.replace("\\", "/").split("/")[-1])[:120] or "nest"
+    db.execute("""
+        insert into program_nest (program_id, filename, content_type, size_bytes, original, preview, preview_type,
+                                  width, height, pages, uploaded_by)
+        values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        on conflict (program_id) do update set
+            filename = excluded.filename, content_type = excluded.content_type, size_bytes = excluded.size_bytes,
+            original = excluded.original, preview = excluded.preview, preview_type = excluded.preview_type,
+            width = excluded.width, height = excluded.height, pages = excluded.pages,
+            uploaded_by = excluded.uploaded_by, uploaded_at = now()
+    """, (program_id, filename, info["content_type"], len(data), data, info["preview"], info["preview_type"],
+          info["width"], info["height"], info["pages"], user_label()))
+    db.commit()
+    note = " Only its first page is shown and printed." if info["pages"] > 1 else ""
+    flash(f"Nest picture saved for {program['number']}.{note}", "ok")
+    return back
+
+
+@bp.route("/programs/<int:program_id>/nest/remove", methods=["POST"])
+def nest_remove(program_id):
+    db.execute("delete from program_nest where program_id = %s", (program_id,))
+    db.commit()
+    flash("Nest picture removed.", "ok")
+    return redirect(url_for("programs.program_form", program_id=program_id) + "#nest")
+
+
+@bp.route("/programs/<int:program_id>/nest/picture")
+def nest_picture(program_id):
+    """The nest as a picture: the upload itself, or page 1 of an uploaded PDF. ?tall=1 turns a wide one upright."""
+    row = db.one("select preview, preview_type, uploaded_at from program_nest where program_id = %s", (program_id,))
+    if not row:
+        return ("No nest picture has been uploaded for this program.", 404)
+    data = bytes(row["preview"])
+    if request.args.get("tall") == "1":
+        data = nest.upright(data, row["preview_type"])
+    response = Response(data, mimetype=row["preview_type"])
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return response
+
+
+@bp.route("/programs/<int:program_id>/nest/file")
+def nest_file(program_id):
+    """The file exactly as it was uploaded."""
+    row = db.one("select original, content_type, filename from program_nest where program_id = %s", (program_id,))
+    if not row:
+        return ("No nest picture has been uploaded for this program.", 404)
+    response = Response(bytes(row["original"]), mimetype=row["content_type"])
+    safe = "".join(ch if ch.isalnum() or ch in "._- " else "_" for ch in row["filename"])
+    response.headers["Content-Disposition"] = f'inline; filename="{safe}"'
+    return response
 
 
 @bp.route("/import", methods=["GET", "POST"])

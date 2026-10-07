@@ -23,6 +23,9 @@
     <label>Stock item <select name="item"><option value="">Any</option>
       <option value="linked" {{ 'selected' if args.get('item') == 'linked' }}>Linked</option>
       <option value="unlinked" {{ 'selected' if args.get('item') == 'unlinked' }}>Not linked</option></select></label>
+    <label>Nest picture <select name="nest"><option value="">Any</option>
+      <option value="has" {{ 'selected' if args.get('nest') == 'has' }}>Has one</option>
+      <option value="missing" {{ 'selected' if args.get('nest') == 'missing' }}>Missing</option></select></label>
     <label>Needs a look <select name="check"><option value="">—</option>
       <option value="dupes" {{ 'selected' if args.get('check') == 'dupes' }}>Number used twice</option>
       <option value="odd" {{ 'selected' if args.get('check') == 'odd' }}>Odd number</option></select></label>
@@ -40,7 +43,7 @@
     </tr></thead>
     <tbody>{% for p in rows %}
       <tr class="{{ 'off' if p.status == 'retired' }}">
-        <td class="nowrap"><a href="{{ url_for('programs.program_form', program_id=p.id, back=request.full_path) }}"><b>{{ p.number }}</b></a>{% if p.dupe %} <span class="tag warn" title="This number is on more than one program">twice</span>{% endif %}{% if p.number_flag %} <span class="tag warn">check</span>{% endif %}</td>
+        <td class="nowrap"><a href="{{ url_for('programs.program_form', program_id=p.id, back=request.full_path) }}"><b>{{ p.number }}</b></a>{% if p.dupe %} <span class="tag warn" title="This number is on more than one program">twice</span>{% endif %}{% if p.number_flag %} <span class="tag warn">check</span>{% endif %}{% if p.has_nest %} <span class="tag ok" title="A nest picture is on file">nest</span>{% endif %}</td>
         <td>{{ p.name }}{% if p.description %} <span class="mute">{{ p.description }}</span>{% endif %}</td>
         <td>{{ p.machine_code }}</td><td class="nowrap">{{ p.sheet_size }}</td><td class="nowrap">{{ p.thickness }}</td><td>{{ p.material_text }}</td>
         <td class="nowrap">{% if p.item_id %}{{ p.item_size }} {{ p.item_thickness }} {{ p.item_type }}{% if p.item_grade %} · {{ p.item_grade }}{% endif %}{% endif %}</td>
@@ -58,7 +61,7 @@
     {% if page < pages %}<a class="btn quiet" href="{{ url_for('programs.program_list', page=page + 1, **args) }}">Next ›</a>{% endif %}
   </p>
   {% endif %}
-  <p class="foot">Router times are minutes:seconds per sheet at 100%.</p>
+  <p class="foot">Router times are minutes:seconds per sheet at 100%. Open a program to review it, upload its nest picture, or create a cutting from it.</p>
   {% elif total == 0 and not args %}
   <p class="note">No programs are loaded yet. <a href="{{ url_for('programs.import_workbook') }}">Load the plywood workbook</a> to bring in the CNC program list.</p>
   {% else %}

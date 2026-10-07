@@ -116,6 +116,14 @@ def cut_order_form(cut_order_id=None):
         form = {k: co[k] for k in ("shop_order", "job_number", "description", "program_id", "item_id",
                                    "machine_id", "qty_units", "sheets_required", "due_date", "notes")}
         form["program_number"] = co["program_number"] or ""
+    elif request.args.get("program", type=int):
+        # "Create Cutting" on a program: carry over what the program already says.
+        src = db.one("select * from program where id = %s", (request.args.get("program", type=int),))
+        if src:
+            machine = db.one("select id from machine where active and code = %s", (src["machine_code"],))
+            form = {"program_number": src["number"], "program_id": src["id"], "item_id": src["item_id"],
+                    "description": norm_ws(f"{src['name']} {src['description']}"),
+                    "machine_id": machine["id"] if machine else None}
     elif request.args.get("copy", type=int):
         src = floor.get_cut_order(db.get_db(), request.args.get("copy", type=int))
         if src:
@@ -212,7 +220,8 @@ def cut_order_form(cut_order_id=None):
         if len(matches) > 1:
             choices = matches
     return render_template("cutorders/form.html", co=co, form=form, errors=errors, choices=choices,
-                           machines=_machines(), items=all_items(active_only=True))
+                           machines=_machines(), items=all_items(active_only=True),
+                           from_program=None if co else request.args.get("program", type=int))
 
 
 @bp.route("/cut-orders/<int:cut_order_id>")

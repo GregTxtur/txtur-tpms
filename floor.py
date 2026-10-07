@@ -95,6 +95,7 @@ CUT_ORDER_SQL = """
            p.sheet_size as program_size, p.thickness as program_thickness,
            i.sheet_size, i.thickness, i.grade, t.name as type_name,
            m.code as machine_code, m.name as machine_name,
+           exists (select 1 from program_nest n where n.program_id = c.program_id) as has_nest,
            coalesce((select sum(s.sheets) from scan_session s where s.cut_order_id = c.id), 0)::int as sheets_cut,
            (select count(*) from scan_session s where s.cut_order_id = c.id and s.ended_at is null) as on_now
       from cut_order c

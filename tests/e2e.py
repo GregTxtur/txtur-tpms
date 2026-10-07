@@ -327,6 +327,52 @@ board = text(office.get(B + "/board")); ok("Released" in board and "After filed"
 bq = one("""select sum(greatest(c.sheets_required - coalesce((select sum(sheets) from scan_session s where s.cut_order_id=c.id),0),0)) n
             from cut_order c where c.status='queued' and c.item_id=%s""", item)["n"]
 ok(str(int(bq)) in board, f"released demand for the test plywood ({bq}) is on the board")
+# 20. nest picture on a program, and Create Cutting from the program page
+import io as _io
+from PIL import Image, ImageDraw
+def picture(size, fmt, mode="RGB"):
+    im = Image.new(mode, size, "white"); ImageDraw.Draw(im).rectangle([20, 20, size[0] - 20, size[1] - 20], outline="black", width=6)
+    buf = _io.BytesIO(); im.save(buf, fmt); return buf.getvalue()
+pid = pa["id"]; purl = B + f"/programs/{pid}"
+page = office.get(purl)
+ok(page.status_code == 200 and "Create Cutting" in page.text and f"/cut-orders/new?program={pid}" in page.text, "program page has the Create Cutting button")
+ok("No nest picture yet" in page.text and office.get(purl + "/nest/picture").status_code == 404, "no nest to start with")
+up = lambda name, data: office.post(purl + "/nest", files={"nest": (name, data)})
+ok("not a picture or PDF" in up("notes.txt", b"just some words").text and one("select count(*) n from program_nest")["n"] == 0, "a file that is not a picture is refused")
+ok("Choose the nest picture" in office.post(purl + "/nest", data={}).text, "upload with no file is refused")
+r = up("nests/P1 wide.jpg", picture((3000, 1500), "JPEG"))
+n = one("select * from program_nest where program_id=%s", pid)
+ok(n and n["filename"] == "P1 wide.jpg" and n["content_type"] == "image/jpeg" and n["width"] == 2200 and n["height"] == 1100 and n["uploaded_by"], "JPG stored, sized down, named without its folder")
+pic = office.get(purl + "/nest/picture"); tall = office.get(purl + "/nest/picture?tall=1")
+ok(pic.headers["Content-Type"] == "image/jpeg" and Image.open(_io.BytesIO(pic.content)).size == (2200, 1100), "picture is served")
+ok(Image.open(_io.BytesIO(tall.content)).size == (1100, 2200), "wide nest stands tall for printing")
+orig = office.get(purl + "/nest/file"); ok(orig.status_code == 200 and len(orig.content) == n["size_bytes"], "the original upload comes back whole")
+ok(requests.get(purl + "/nest/picture", allow_redirects=False).status_code == 302, "nest pictures are behind office sign-on")
+pdf = _io.BytesIO(); Image.new("RGB", (850, 1100), "white").save(pdf, "PDF", save_all=True, append_images=[Image.new("RGB", (850, 1100), "gray")])
+up("nest.pdf", pdf.getvalue())
+n = one("select * from program_nest where program_id=%s", pid)
+ok(one("select count(*) n from program_nest")["n"] == 1 and n["content_type"] == "application/pdf" and n["pages"] == 2 and n["preview_type"] == "image/png" and n["height"] > n["width"], "PDF replaces the JPG; page 1 becomes the picture")
+ok(office.get(purl + "/nest/file").headers["Content-Type"] == "application/pdf", "the PDF itself can be opened")
+ok("not a picture or PDF" not in up("clear.png", picture((600, 400), "PNG", "RGBA")).text and one("select content_type c from program_nest where program_id=%s", pid)["c"] == "image/png", "PNG with transparency accepted")
+ok("could not be opened" in up("bad.pdf", b"%PDF-1.4 nothing here").text and one("select content_type c from program_nest where program_id=%s", pid)["c"] == "image/png", "a broken PDF is refused and the old nest stays")
+ok(f">{pa['number']}<" in office.get(B + "/programs?nest=has").text.replace("<b>", ">").replace("</b>", "<") and one("select count(*) n from program_nest")["n"] == 1, "program list can show programs with a nest")
+form = office.get(B + f"/cut-orders/new?program={pid}")
+src = one("select * from program where id=%s", pid)
+ok(form.status_code == 200 and f'value="{src["number"]}"' in form.text and src["name"] in form.text, "Create Cutting opens the form with the program filled in")
+ok(f'href="/programs/{pid}"' in form.text and "Started from program" in form.text, "Cancel on that form goes back to the program")
+r = office.post(B + "/cut-orders/new", data={"program_number": src["number"], "program_id": pid, "item_id": src["item_id"] or item, "qty_units": 4,
+                                             "shop_order": "NEST1", "job_number": "JNEST1", "machine_id": h1, "action": "release"}, allow_redirects=False)
+con = one("select * from cut_order where shop_order='NEST1'")
+ok(r.status_code == 302 and con and con["program_id"] == pid and con["status"] == "queued", "cutting created from the program")
+cover = office.get(B + f"/cut-orders/{con['id']}/print").text
+ok(f"/programs/{pid}/nest/picture" in cover and "tall=1" in cover, "cover sheet carries the nest as page 2")
+ok(f"/programs/{pid}/nest/picture" in office.get(B + f"/cut-orders/{con['id']}").text, "cut order page shows the nest")
+page = office.get(purl).text
+ok("CO-%04d" % con["id"] in page and "Cuttings on this program" in page, "program page lists its cuttings")
+other = office.get(B + f"/cut-orders/{co2['id']}/print").text
+ok(("nest/picture" in other) == bool(one("select 1 from program_nest where program_id=%s", co2["program_id"])), "no nest page when the program has none")
+office.post(purl + "/nest/remove")
+ok(one("select count(*) n from program_nest")["n"] == 0 and "nest/picture" not in office.get(B + f"/cut-orders/{con['id']}/print").text, "remove takes the nest off the program and the cover sheet")
 for path in [f"/cut-orders/{co1['id']}", f"/cut-orders/{co1['id']}/edit", f"/cut-orders/new?copy={co1['id']}", "/cut-orders?view=complete", "/", "/setup"]:
     ok(office.get(B + path).status_code == 200, "page " + path)
 if LOG:

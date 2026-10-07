@@ -4,15 +4,16 @@
 {% block body %}
 <section class="sheet">
   <p class="crumb"><a href="{{ url_for('cutorders.cut_order_list') }}">Cut orders</a> ›</p>
-  <h1>{{ ('Edit ' ~ co.number) if co else 'New cut order' }}</h1>
+  <h1>{{ ('Edit ' ~ co.number) if co else 'New cutting' }}</h1>
+  {% if from_program and form.get('program_number') %}<p class="lede">Started from program {{ form.program_number }}. Add the quantity and the order details, then release it.</p>{% endif %}
   {% for e in errors %}<p class="flash bad">{{ e }}</p>{% endfor %}
   <form method="post" class="form" id="coform">
     <div class="row3">
       <label>Program number
-        <input name="program_number" id="program_number" value="{{ val('program_number') }}" placeholder="P4055" autocomplete="off" {{ 'autofocus' if not co }}>
+        <input name="program_number" id="program_number" value="{{ val('program_number') }}" placeholder="P4055" autocomplete="off" {{ 'autofocus' if not co and not form.get('program_number') }}>
       </label>
       <label>Quantity, units
-        <input name="qty_units" id="qty_units" inputmode="decimal" value="{{ form.qty_units|qty if form.get('qty_units') is not none else '' }}">
+        <input name="qty_units" id="qty_units" inputmode="decimal" value="{{ form.qty_units|qty if form.get('qty_units') is not none else '' }}" {{ 'autofocus' if not co and form.get('program_number') }}>
       </label>
       <label>Router
         <select name="machine_id">
@@ -59,7 +60,7 @@
       {% else %}
       <button type="submit" name="action" value="save">Save</button>
       {% endif %}
-      <a class="btn quiet" href="{{ url_for('cutorders.cut_order_detail', cut_order_id=co.id) if co else url_for('cutorders.cut_order_list') }}">Cancel</a>
+      <a class="btn quiet" href="{{ url_for('cutorders.cut_order_detail', cut_order_id=co.id) if co else (url_for('programs.program_form', program_id=from_program) if from_program else url_for('cutorders.cut_order_list')) }}">Cancel</a>
     </p>
   </form>
 </section>
@@ -84,7 +85,7 @@
     if (list.length > 1) { info.textContent = list.length + ' programs share that number. Save to choose between them.'; info.className = 'hint'; return; }
     var p = current = list[0], bits = [p.name + (p.description ? ' ' + p.description : '')];
     bits.push([p.size, p.thickness, p.material].filter(Boolean).join(' '));
-    bits.push(p.units_per_sheet ? p.units_per_sheet + ' units per sheet' : p.sheets_per_unit ? p.sheets_per_unit + ' sheets per unit' : 'no yield on file: enter the sheets yourself');
+    bits.push(p.units_per_sheet ? p.units_per_sheet + (p.units_per_sheet == 1 ? ' unit per sheet' : ' units per sheet') : p.sheets_per_unit ? p.sheets_per_unit + ' sheets per unit' : 'no yield on file: enter the sheets yourself');
     bits.push(p.times ? 'router time ' + p.times : 'no router time on file: this order will earn no minutes');
     bits.push(p.item ? 'cuts from ' + p.item : 'plywood not chosen yet: pick it below');
     info.textContent = bits.filter(Boolean).join(' · '); info.className = 'hint';

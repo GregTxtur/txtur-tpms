@@ -59,5 +59,11 @@
     </div>
   </footer>
 </article>
+{% if co.has_nest %}
+<article class="nestpage">
+  <header><b>{{ co.number }}</b><span>{{ co.program_number }} · {{ co.description }}</span><span>{{ co.machine_name or '' }} · {{ co.plywood }}</span></header>
+  <img src="{{ url_for('programs.nest_picture', program_id=co.program_id, tall=1) }}" alt="Nest for program {{ co.program_number }}">
+</article>
+{% endif %}
 </body>
 </html>

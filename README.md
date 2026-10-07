@@ -23,21 +23,15 @@ Words: stock is always counted in **sheets**. A **pack** is the bundle plywood a
 ## Scanning and sign-on
 
 Office pages are behind the shared Microsoft 365 gate. The phone pages under `/s/` are not: a team member's
-phone says who it is once (name, then PIN) and is remembered. For that to work, nginx must let `/s/` and
-`/static/` through without the gate, and must blank the gate's headers on those paths so nothing typed into
-a phone can pass for an office sign-in:
+phone says who it is once (name, then PIN) and is remembered. For that to work, the web server must let
+`/s/` and `/static/` through without the gate, and must blank the gate's headers on those paths so nothing
+sent from a phone can pass for an office sign-in. `deploy/open_scan_pages.sh` makes exactly that change,
+checks it, and backs out by itself if the web server rejects it. Because it changes the server's sign-on
+rules, a person runs it, once per server:
 
-    location = /s { return 302 /s/me; }
-    location ~ ^/(s|static)/ {
-        proxy_pass http://127.0.0.1:8003;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Auth-Request-Email "";
-        proxy_set_header X-Auth-Request-User "";
-        proxy_set_header X-Auth-Request-Groups "";
-    }
+    sudo bash /opt/tpms/deploy/open_scan_pages.sh
 
-Match `/s/` exactly as above. A looser `/s` would also open `/setup`.
+The rule matches `/s/` exactly. A looser `/s` would also open `/setup`.
 
 Earned minutes come from three places: sheets cut x the program's router time, a changeover standard once
 per cut order (not when the same program runs back to back on a router), and a fixed standard for each
